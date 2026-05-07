@@ -1,4 +1,4 @@
-// server.js - MongoDB Atlas Version with Fixed Connection
+// server.js - Optimized for persistent data loading
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -11,22 +11,22 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this';
 
-// MongoDB Atlas Connection String (from environment variable)
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://priyan_admin:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/priyan-motors?retryWrites=true&w=majority';
+// MongoDB Atlas Connection String
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://priyan_admin:PriyanMotor2026@cluster1.qobexsl.mongodb.net/priyan-motors?retryWrites=true&w=majority';
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Increased for Base64 images
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' })); // Increased for large Base64 images
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
-// Configure multer for memory storage (no filesystem needed)
+// Configure multer for memory storage
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// ============= MONGODB CONNECTION (Fixed - removed deprecated options) =============
+// ============= MONGODB CONNECTION =============
 console.log('🔄 Connecting to MongoDB Atlas...');
 
 mongoose.connect(MONGODB_URI)
@@ -36,14 +36,8 @@ mongoose.connect(MONGODB_URI)
   })
   .catch(err => {
     console.error('❌ MongoDB connection error:', err.message);
-    console.log('💡 Troubleshooting tips:');
-    console.log('   1. Check MONGODB_URI environment variable is set correctly');
-    console.log('   2. Verify Network Access in MongoDB Atlas allows 0.0.0.0/0');
-    console.log('   3. Confirm username and password are correct');
-    console.log('   4. Make sure special characters in password are URL-encoded (%40 for @, etc.)');
   });
 
-// Add connection event listeners for debugging
 mongoose.connection.on('error', err => {
   console.error('MongoDB connection error:', err.message);
 });
@@ -52,12 +46,7 @@ mongoose.connection.on('disconnected', () => {
   console.log('⚠️ MongoDB disconnected');
 });
 
-mongoose.connection.on('reconnected', () => {
-  console.log('✅ MongoDB reconnected');
-});
-
 // ============= SCHEMAS =============
-// User Schema
 const userSchema = new mongoose.Schema({
   username: { type: String, unique: true, required: true },
   password: { type: String, required: true },
@@ -65,7 +54,6 @@ const userSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now }
 });
 
-// Bike Schema
 const bikeSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: String, required: true },
@@ -74,22 +62,20 @@ const bikeSchema = new mongoose.Schema({
   km: { type: String, required: true },
   location: { type: String, required: true },
   brand: { type: String, required: true },
-  image: { type: String }, // Base64 image data or URL
+  image: { type: String },
   created_at: { type: Date, default: Date.now }
 });
 
-// Sold Bike Schema
 const soldSchema = new mongoose.Schema({
   name: { type: String, required: true },
   sold_price: { type: String, required: true },
   sold_price_num: { type: Number, required: true },
   month_year: { type: String, required: true },
   buyer: { type: String, required: true },
-  image: { type: String }, // Base64 image data or URL
+  image: { type: String },
   created_at: { type: Date, default: Date.now }
 });
 
-// Settings Schema
 const settingSchema = new mongoose.Schema({
   key: { type: String, unique: true, required: true },
   value: { type: String, required: true },
@@ -287,6 +273,10 @@ app.get('/api/verify-token', authenticateToken, (req, res) => {
 app.get('/api/bikes', async (req, res) => {
   try {
     const bikes = await Bike.find().sort({ created_at: -1 });
+    // Set cache control headers
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.json(bikes);
   } catch (err) {
     console.error('Error fetching bikes:', err);
@@ -315,7 +305,7 @@ app.post('/api/bikes', authenticateToken, upload.single('image'), async (req, re
     }
     
     const bike = await Bike.create(bikeData);
-    res.json({ id: bike.id, message: 'Bike added successfully' });
+    res.json({ id: bike.id, message: 'Bike added successfully', bike });
   } catch (err) {
     console.error('Error adding bike:', err);
     res.status(500).json({ error: err.message });
@@ -343,8 +333,8 @@ app.put('/api/bikes/:id', authenticateToken, upload.single('image'), async (req,
       updateData.image = req.body.image_url;
     }
     
-    await Bike.findByIdAndUpdate(id, updateData);
-    res.json({ message: 'Bike updated successfully' });
+    const updatedBike = await Bike.findByIdAndUpdate(id, updateData, { new: true });
+    res.json({ message: 'Bike updated successfully', bike: updatedBike });
   } catch (err) {
     console.error('Error updating bike:', err);
     res.status(500).json({ error: err.message });
@@ -366,6 +356,9 @@ app.delete('/api/bikes/:id', authenticateToken, async (req, res) => {
 app.get('/api/sold', async (req, res) => {
   try {
     const sold = await Sold.find().sort({ created_at: -1 });
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.json(sold);
   } catch (err) {
     console.error('Error fetching sold:', err);
@@ -392,7 +385,7 @@ app.post('/api/sold', authenticateToken, upload.single('image'), async (req, res
     }
     
     const sold = await Sold.create(soldData);
-    res.json({ id: sold.id, message: 'Sold entry added successfully' });
+    res.json({ id: sold.id, message: 'Sold entry added successfully', sold });
   } catch (err) {
     console.error('Error adding sold entry:', err);
     res.status(500).json({ error: err.message });
@@ -418,8 +411,8 @@ app.put('/api/sold/:id', authenticateToken, upload.single('image'), async (req, 
       updateData.image = req.body.image_url;
     }
     
-    await Sold.findByIdAndUpdate(id, updateData);
-    res.json({ message: 'Sold entry updated successfully' });
+    const updatedSold = await Sold.findByIdAndUpdate(id, updateData, { new: true });
+    res.json({ message: 'Sold entry updated successfully', sold: updatedSold });
   } catch (err) {
     console.error('Error updating sold entry:', err);
     res.status(500).json({ error: err.message });
@@ -443,6 +436,7 @@ app.get('/api/settings/:key', async (req, res) => {
   
   try {
     const setting = await Setting.findOne({ key });
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ key, value: setting ? setting.value : null });
   } catch (err) {
     res.json({ key, value: null });
@@ -472,6 +466,7 @@ app.post('/api/settings/logo', authenticateToken, upload.single('logo'), async (
 app.get('/api/settings/logo', async (req, res) => {
   try {
     const setting = await Setting.findOne({ key: 'website_logo' });
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ logoUrl: setting ? setting.value : 'https://placehold.co/400x400/1E3A8A/white?text=PM' });
   } catch (err) {
     res.json({ logoUrl: 'https://placehold.co/400x400/1E3A8A/white?text=PM' });
@@ -501,7 +496,6 @@ initializeData().then(() => {
   });
 }).catch(err => {
   console.error('Failed to initialize data:', err);
-  // Still start the server even if data initialization fails
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT} (with warnings)`);
   });
