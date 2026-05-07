@@ -1,4 +1,4 @@
-// server.js - MongoDB Atlas Version
+// server.js - MongoDB Atlas Version with Fixed Connection
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -6,42 +6,54 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
-const { GridFsStorage } = require('multer-gridfs-storage');
-const crypto = require('crypto');
-const Grid = require('gridfs-stream');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'your-super-secret-jwt-key-change-this';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this';
 
-// MongoDB Atlas Connection String
-// Get this from your MongoDB Atlas dashboard
-const MONGODB_URI = 'mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/priyan-motors?retryWrites=true&w=majority';
+// MongoDB Atlas Connection String (from environment variable)
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://priyan_admin:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/priyan-motors?retryWrites=true&w=majority';
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Increased for Base64 images
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
-// MongoDB Connection
-let gfs, gridfsBucket;
+// Configure multer for memory storage (no filesystem needed)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log('✅ Connected to MongoDB Atlas');
-  
-  // Initialize GridFS
-  const conn = mongoose.connection;
-  gridfsBucket = new mongoose.mongo.GridFSBucket(conn.db, {
-    bucketName: 'uploads'
+// ============= MONGODB CONNECTION (Fixed - removed deprecated options) =============
+console.log('🔄 Connecting to MongoDB Atlas...');
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('✅ Connected to MongoDB Atlas successfully!');
+    console.log('📁 Database: priyan-motors');
+  })
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err.message);
+    console.log('💡 Troubleshooting tips:');
+    console.log('   1. Check MONGODB_URI environment variable is set correctly');
+    console.log('   2. Verify Network Access in MongoDB Atlas allows 0.0.0.0/0');
+    console.log('   3. Confirm username and password are correct');
+    console.log('   4. Make sure special characters in password are URL-encoded (%40 for @, etc.)');
   });
-  gfs = Grid(conn.db, mongoose.mongo);
-  gfs.collection('uploads');
-}).catch(err => {
-  console.error('❌ MongoDB connection error:', err);
+
+// Add connection event listeners for debugging
+mongoose.connection.on('error', err => {
+  console.error('MongoDB connection error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('⚠️ MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('✅ MongoDB reconnected');
 });
 
 // ============= SCHEMAS =============
@@ -52,7 +64,6 @@ const userSchema = new mongoose.Schema({
   profile_picture: { type: String },
   created_at: { type: Date, default: Date.now }
 });
-const User = mongoose.model('User', userSchema);
 
 // Bike Schema
 const bikeSchema = new mongoose.Schema({
@@ -63,11 +74,9 @@ const bikeSchema = new mongoose.Schema({
   km: { type: String, required: true },
   location: { type: String, required: true },
   brand: { type: String, required: true },
-  image_id: { type: mongoose.Schema.Types.ObjectId }, // GridFS file ID
-  image_url: { type: String }, // For external URLs
+  image: { type: String }, // Base64 image data or URL
   created_at: { type: Date, default: Date.now }
 });
-const Bike = mongoose.model('Bike', bikeSchema);
 
 // Sold Bike Schema
 const soldSchema = new mongoose.Schema({
@@ -76,11 +85,9 @@ const soldSchema = new mongoose.Schema({
   sold_price_num: { type: Number, required: true },
   month_year: { type: String, required: true },
   buyer: { type: String, required: true },
-  image_id: { type: mongoose.Schema.Types.ObjectId },
-  image_url: { type: String },
+  image: { type: String }, // Base64 image data or URL
   created_at: { type: Date, default: Date.now }
 });
-const Sold = mongoose.model('Sold', soldSchema);
 
 // Settings Schema
 const settingSchema = new mongoose.Schema({
@@ -88,38 +95,16 @@ const settingSchema = new mongoose.Schema({
   value: { type: String, required: true },
   updated_at: { type: Date, default: Date.now }
 });
+
+const User = mongoose.model('User', userSchema);
+const Bike = mongoose.model('Bike', bikeSchema);
+const Sold = mongoose.model('Sold', soldSchema);
 const Setting = mongoose.model('Setting', settingSchema);
 
-// ============= GRIDFS STORAGE CONFIGURATION =============
-const storage = new GridFsStorage({
-  url: MONGODB_URI,
-  file: (req, file) => {
-    return new Promise((resolve, reject) => {
-      crypto.randomBytes(16, (err, buf) => {
-        if (err) return reject(err);
-        
-        // Determine folder based on request type
-        let folder = 'general';
-        if (req.url.includes('profile')) folder = 'profiles';
-        else if (req.url.includes('logo')) folder = 'logos';
-        else if (req.url.includes('sold')) folder = 'sold';
-        else if (req.url.includes('bike')) folder = 'bikes';
-        
-        const filename = `${folder}/${Date.now()}-${buf.toString('hex')}${path.extname(file.originalname)}`;
-        
-        resolve({
-          filename: filename,
-          bucketName: 'uploads'
-        });
-      });
-    });
-  }
-});
-
-const upload = multer({ 
-  storage: storage, 
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-});
+// Helper: Convert buffer to Base64
+const bufferToBase64 = (buffer, mimeType) => {
+  return `data:${mimeType};base64,${buffer.toString('base64')}`;
+};
 
 // ============= AUTH MIDDLEWARE =============
 const authenticateToken = async (req, res, next) => {
@@ -145,31 +130,46 @@ const authenticateToken = async (req, res, next) => {
 
 // ============= INITIALIZE DEFAULT DATA =============
 async function initializeData() {
-  // Create default admin if not exists
-  const adminExists = await User.findOne({ username: 'admin' });
-  if (!adminExists) {
-    const hashedPassword = bcrypt.hashSync('admin123', 10);
-    await User.create({ username: 'admin', password: hashedPassword });
-    console.log('✅ Default admin user created');
-  }
-  
-  // Create default logo setting if not exists
-  const logoSetting = await Setting.findOne({ key: 'website_logo' });
-  if (!logoSetting) {
-    await Setting.create({ key: 'website_logo', value: 'https://placehold.co/400x400/1E3A8A/white?text=PM' });
-    console.log('✅ Default logo setting created');
-  }
-  
-  // Add sample bikes if none exist
-  const bikeCount = await Bike.countDocuments();
-  if (bikeCount === 0) {
-    const sampleBikes = [
-      { name: "Hero Glamour", price: "Rs. 290,000", price_num: 290000, year: "2020", km: "26,200 km", location: "Batticaloa", brand: "Hero", image_url: "https://i.ibb.co/JRzmSsHs/b1.jpg" },
-      { name: "Apache RTR 180", price: "Rs. 350,000", price_num: 350000, year: "2014", km: "34,300 km", location: "Batticaloa", brand: "TVS", image_url: "https://i.ibb.co/yF2W5xJp/b2.jpg" },
-      { name: "YAMAHA RAY ZR", price: "Rs. 490,000", price_num: 490000, year: "2018", km: "32,800 km", location: "Batticaloa", brand: "YAMAHA", image_url: "https://i.ibb.co/1tbJmkkr/b3.jpg" }
-    ];
-    await Bike.insertMany(sampleBikes);
-    console.log('✅ Sample bikes added');
+  try {
+    // Create default admin if not exists
+    const adminExists = await User.findOne({ username: 'admin' });
+    if (!adminExists) {
+      const hashedPassword = bcrypt.hashSync('admin123', 10);
+      await User.create({ username: 'admin', password: hashedPassword });
+      console.log('✅ Default admin user created (username: admin, password: admin123)');
+    }
+    
+    // Create default logo setting if not exists
+    const logoSetting = await Setting.findOne({ key: 'website_logo' });
+    if (!logoSetting) {
+      await Setting.create({ key: 'website_logo', value: 'https://placehold.co/400x400/1E3A8A/white?text=PM' });
+      console.log('✅ Default logo setting created');
+    }
+    
+    // Add sample bikes if none exist
+    const bikeCount = await Bike.countDocuments();
+    if (bikeCount === 0) {
+      const sampleBikes = [
+        { name: "Hero Glamour", price: "Rs. 290,000", price_num: 290000, year: "2020", km: "26,200 km", location: "Batticaloa", brand: "Hero", image: "https://i.ibb.co/JRzmSsHs/b1.jpg" },
+        { name: "Apache RTR 180", price: "Rs. 350,000", price_num: 350000, year: "2014", km: "34,300 km", location: "Batticaloa", brand: "TVS", image: "https://i.ibb.co/yF2W5xJp/b2.jpg" },
+        { name: "YAMAHA RAY ZR", price: "Rs. 490,000", price_num: 490000, year: "2018", km: "32,800 km", location: "Batticaloa", brand: "YAMAHA", image: "https://i.ibb.co/1tbJmkkr/b3.jpg" }
+      ];
+      await Bike.insertMany(sampleBikes);
+      console.log('✅ Sample bikes added');
+    }
+    
+    // Add sample sold bikes if none exist
+    const soldCount = await Sold.countDocuments();
+    if (soldCount === 0) {
+      const sampleSold = [
+        { name: "Honda CB Shine", sold_price: "Rs. 375,000", sold_price_num: 375000, month_year: "Feb 2025", buyer: "Mr. Ramesh", image: "https://i.ibb.co/JRzmSsHs/b1.jpg" },
+        { name: "Yamaha FZ V3", sold_price: "Rs. 485,000", sold_price_num: 485000, month_year: "Mar 2025", buyer: "Mrs. Santhiya", image: "https://i.ibb.co/yF2W5xJp/b2.jpg" }
+      ];
+      await Sold.insertMany(sampleSold);
+      console.log('✅ Sample sold entries added');
+    }
+  } catch (err) {
+    console.error('Error initializing data:', err);
   }
 }
 
@@ -198,6 +198,7 @@ app.post('/api/login', async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
@@ -254,102 +255,109 @@ app.post('/api/upload-profile-picture', authenticateToken, upload.single('image'
     return res.status(400).json({ error: 'No file uploaded' });
   }
   
-  const imageUrl = `/api/image/${req.file.id}`;
-  await User.findByIdAndUpdate(req.user.id, { profile_picture: imageUrl });
-  res.json({ imageUrl });
+  try {
+    const imageData = bufferToBase64(req.file.buffer, req.file.mimetype);
+    await User.findByIdAndUpdate(req.user.id, { profile_picture: imageData });
+    res.json({ imageUrl: imageData });
+  } catch (err) {
+    console.error('Profile picture upload error:', err);
+    res.status(500).json({ error: 'Failed to upload profile picture' });
+  }
 });
 
-// ============= IMAGE RETRIEVAL ROUTE =============
-app.get('/api/image/:id', async (req, res) => {
+// ============= USER INFO ROUTES =============
+app.get('/api/me', authenticateToken, async (req, res) => {
   try {
-    const objectId = new mongoose.Types.ObjectId(req.params.id);
-    const downloadStream = gridfsBucket.openDownloadStream(objectId);
-    
-    downloadStream.on('data', (chunk) => {
-      res.write(chunk);
-    });
-    
-    downloadStream.on('error', () => {
-      res.status(404).json({ error: 'Image not found' });
-    });
-    
-    downloadStream.on('end', () => {
-      res.end();
+    const user = await User.findById(req.user.id).select('-password');
+    res.json({
+      id: user.id,
+      username: user.username,
+      profile_picture: user.profile_picture || null
     });
   } catch (err) {
-    res.status(404).json({ error: 'Image not found' });
+    res.status(500).json({ error: 'Failed to get user info' });
   }
+});
+
+app.get('/api/verify-token', authenticateToken, (req, res) => {
+  res.json({ valid: true, user: { id: req.user.id, username: req.user.username } });
 });
 
 // ============= BIKE ROUTES =============
 app.get('/api/bikes', async (req, res) => {
   try {
     const bikes = await Bike.find().sort({ created_at: -1 });
-    // Convert image_id to URL if present
-    const bikesWithUrls = bikes.map(bike => ({
-      ...bike.toObject(),
-      image: bike.image_id ? `/api/image/${bike.image_id}` : bike.image_url
-    }));
-    res.json(bikesWithUrls);
+    res.json(bikes);
   } catch (err) {
+    console.error('Error fetching bikes:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
 
 app.post('/api/bikes', authenticateToken, upload.single('image'), async (req, res) => {
-  const { name, price, price_num, year, km, location, brand } = req.body;
-  
   try {
+    const { name, price, price_num, year, km, location, brand } = req.body;
+    
     const bikeData = {
-      name, price, price_num: parseInt(price_num), year, km, location, brand
+      name,
+      price,
+      price_num: parseInt(price_num),
+      year,
+      km,
+      location,
+      brand
     };
     
     if (req.file) {
-      bikeData.image_id = req.file.id;
+      bikeData.image = bufferToBase64(req.file.buffer, req.file.mimetype);
     } else if (req.body.image_url) {
-      bikeData.image_url = req.body.image_url;
+      bikeData.image = req.body.image_url;
     }
     
     const bike = await Bike.create(bikeData);
     res.json({ id: bike.id, message: 'Bike added successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('Error adding bike:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.put('/api/bikes/:id', authenticateToken, upload.single('image'), async (req, res) => {
-  const { id } = req.params;
-  const { name, price, price_num, year, km, location, brand } = req.body;
-  
   try {
-    const updateData = { name, price, price_num: parseInt(price_num), year, km, location, brand };
+    const { id } = req.params;
+    const { name, price, price_num, year, km, location, brand } = req.body;
+    
+    const updateData = {
+      name,
+      price,
+      price_num: parseInt(price_num),
+      year,
+      km,
+      location,
+      brand
+    };
     
     if (req.file) {
-      updateData.image_id = req.file.id;
-      updateData.image_url = null;
+      updateData.image = bufferToBase64(req.file.buffer, req.file.mimetype);
     } else if (req.body.image_url) {
-      updateData.image_url = req.body.image_url;
+      updateData.image = req.body.image_url;
     }
     
     await Bike.findByIdAndUpdate(id, updateData);
     res.json({ message: 'Bike updated successfully' });
   } catch (err) {
+    console.error('Error updating bike:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.delete('/api/bikes/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  
   try {
-    const bike = await Bike.findById(id);
-    if (bike && bike.image_id) {
-      await gridfsBucket.delete(bike.image_id);
-    }
+    const { id } = req.params;
     await Bike.findByIdAndDelete(id);
     res.json({ message: 'Bike deleted successfully' });
   } catch (err) {
+    console.error('Error deleting bike:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -358,69 +366,73 @@ app.delete('/api/bikes/:id', authenticateToken, async (req, res) => {
 app.get('/api/sold', async (req, res) => {
   try {
     const sold = await Sold.find().sort({ created_at: -1 });
-    const soldWithUrls = sold.map(item => ({
-      ...item.toObject(),
-      image: item.image_id ? `/api/image/${item.image_id}` : item.image_url
-    }));
-    res.json(soldWithUrls);
+    res.json(sold);
   } catch (err) {
+    console.error('Error fetching sold:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });
 
 app.post('/api/sold', authenticateToken, upload.single('image'), async (req, res) => {
-  const { name, sold_price, sold_price_num, month_year, buyer } = req.body;
-  
   try {
+    const { name, sold_price, sold_price_num, month_year, buyer } = req.body;
+    
     const soldData = {
-      name, sold_price, sold_price_num: parseInt(sold_price_num), month_year, buyer
+      name,
+      sold_price,
+      sold_price_num: parseInt(sold_price_num),
+      month_year,
+      buyer
     };
     
     if (req.file) {
-      soldData.image_id = req.file.id;
+      soldData.image = bufferToBase64(req.file.buffer, req.file.mimetype);
     } else if (req.body.image_url) {
-      soldData.image_url = req.body.image_url;
+      soldData.image = req.body.image_url;
     }
     
     const sold = await Sold.create(soldData);
     res.json({ id: sold.id, message: 'Sold entry added successfully' });
   } catch (err) {
+    console.error('Error adding sold entry:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.put('/api/sold/:id', authenticateToken, upload.single('image'), async (req, res) => {
-  const { id } = req.params;
-  const { name, sold_price, sold_price_num, month_year, buyer } = req.body;
-  
   try {
-    const updateData = { name, sold_price, sold_price_num: parseInt(sold_price_num), month_year, buyer };
+    const { id } = req.params;
+    const { name, sold_price, sold_price_num, month_year, buyer } = req.body;
+    
+    const updateData = {
+      name,
+      sold_price,
+      sold_price_num: parseInt(sold_price_num),
+      month_year,
+      buyer
+    };
     
     if (req.file) {
-      updateData.image_id = req.file.id;
-      updateData.image_url = null;
+      updateData.image = bufferToBase64(req.file.buffer, req.file.mimetype);
     } else if (req.body.image_url) {
-      updateData.image_url = req.body.image_url;
+      updateData.image = req.body.image_url;
     }
     
     await Sold.findByIdAndUpdate(id, updateData);
     res.json({ message: 'Sold entry updated successfully' });
   } catch (err) {
+    console.error('Error updating sold entry:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.delete('/api/sold/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  
   try {
-    const sold = await Sold.findById(id);
-    if (sold && sold.image_id) {
-      await gridfsBucket.delete(sold.image_id);
-    }
+    const { id } = req.params;
     await Sold.findByIdAndDelete(id);
     res.json({ message: 'Sold entry deleted successfully' });
   } catch (err) {
+    console.error('Error deleting sold entry:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -441,7 +453,7 @@ app.post('/api/settings/logo', authenticateToken, upload.single('logo'), async (
   let logoUrl = req.body.logoUrl;
   
   if (req.file) {
-    logoUrl = `/api/image/${req.file.id}`;
+    logoUrl = bufferToBase64(req.file.buffer, req.file.mimetype);
   }
   
   try {
@@ -452,6 +464,7 @@ app.post('/api/settings/logo', authenticateToken, upload.single('logo'), async (
     );
     res.json({ logoUrl });
   } catch (err) {
+    console.error('Error updating logo:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -465,14 +478,13 @@ app.get('/api/settings/logo', async (req, res) => {
   }
 });
 
-// Verify token endpoint
-app.get('/api/verify-token', authenticateToken, (req, res) => {
-  res.json({ valid: true, user: { id: req.user.id, username: req.user.username } });
-});
-
-app.get('/api/me', authenticateToken, async (req, res) => {
-  const user = await User.findById(req.user.id).select('-password');
-  res.json(user);
+// ============= HEALTH CHECK =============
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
 // Serve frontend
@@ -480,34 +492,17 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Initialize database and start server
+// ============= START SERVER =============
 initializeData().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📁 MongoDB Atlas connected`);
+    console.log(`📍 URL: http://localhost:${PORT}`);
+    console.log(`🔐 Admin login: admin / admin123`);
   });
-});
-
-// Add this to your server.js - Get current user with full profile
-app.get('/api/me', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    res.json({
-      id: user.id,
-      username: user.username,
-      profile_picture: user.profile_picture || null
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to get user info' });
-  }
-});
-
-// Add this endpoint to serve profile picture separately
-app.get('/api/profile-picture', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('profile_picture');
-    res.json({ profile_picture: user.profile_picture || null });
-  } catch (err) {
-    res.json({ profile_picture: null });
-  }
+}).catch(err => {
+  console.error('Failed to initialize data:', err);
+  // Still start the server even if data initialization fails
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT} (with warnings)`);
+  });
 });
