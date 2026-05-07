@@ -12,12 +12,14 @@
         .hero-gradient { background: linear-gradient(125deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 100%), url('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80'); background-size: cover; background-position: center 35%; }
         .active-page { color: #00BFFF; border-bottom: 3px solid #00BFFF; font-weight: 700; }
         .modal-overlay { background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); }
-        .bike-img { aspect-ratio: 4/3; width: 100%; height: auto; max-height: 200px; object-fit: cover; }
+        .bike-img, .sold-img { aspect-ratio: 4/3; width: 100%; height: auto; max-height: 200px; object-fit: cover; }
         .sold-card { transition: transform 0.2s; }
         .filter-chip.active-filter { background-color: #00BFFF; color: white; border-color: #00BFFF; }
         @media (max-width: 640px) { .hero-gradient { min-height: 70vh; } }
         .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 50px; z-index: 1000; animation: fadeInOut 3s ease; }
         @keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+        .logo-clickable { cursor: pointer; transition: transform 0.2s, opacity 0.2s; }
+        .logo-clickable:hover { transform: scale(1.05); opacity: 0.9; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -26,10 +28,11 @@
 <nav class="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
     <div class="container mx-auto px-3 md:px-6">
         <div class="flex flex-wrap items-center justify-between py-2 md:py-3">
-            <a href="#" id="logoLink" class="flex items-center space-x-2 md:space-x-3">
+            <!-- CLICKABLE LOGO - Now you can click to change -->
+            <div class="flex items-center space-x-2 md:space-x-3 logo-clickable" id="clickableLogo">
                 <img id="siteLogo" src="" alt="Logo" class="w-11 h-11 md:w-14 md:h-14 rounded-full border-2 border-gray-300 shadow-sm object-cover">
                 <h1 class="text-lg md:text-2xl font-black tracking-tight">MR. PRIYAN <span class="text-[#4682B4]">MOTORS</span></h1>
-            </a>
+            </div>
             
             <div class="hidden md:flex space-x-1 lg:space-x-2 font-semibold">
                 <a href="#" data-page="home" class="nav-link px-4 py-2 text-gray-700 hover:text-blue-600 transition active-page">Home</a>
@@ -106,7 +109,7 @@
 
 <div id="settingsModal" class="fixed inset-0 z-[200] hidden items-center justify-center modal-overlay p-4">
     <div class="bg-white rounded-2xl w-full max-w-md p-6"><h3 class="text-xl font-bold mb-4">Settings</h3>
-        <div class="space-y-3"><p class="text-gray-600">• Manage bikes from Bikes page</p><p class="text-gray-600">• Manage sold entries from Sold page</p><p class="text-gray-600">• Update logo from Account menu</p><p class="text-gray-600">• Change password/username from Account menu</p></div>
+        <div class="space-y-3"><p class="text-gray-600">• Manage bikes from Bikes page</p><p class="text-gray-600">• Manage sold entries from Sold page</p><p class="text-gray-600">• Click on logo to update it quickly</p><p class="text-gray-600">• Change password/username from Account menu</p></div>
         <button id="closeSettingsModalBtn" class="w-full mt-4 bg-gray-300 py-2 rounded-lg">Close</button>
     </div>
 </div>
@@ -151,12 +154,14 @@
     </div>
 </div>
 
+<!-- Edit Bike Modal -->
 <div id="editBikeModal" class="fixed inset-0 z-[300] hidden items-center justify-center modal-overlay p-4">
     <div class="bg-white rounded-2xl w-full max-w-lg mx-auto p-5 modal-inner-scroll max-h-[90vh] overflow-y-auto"><h3 id="modalTitle" class="text-xl font-bold mb-4">Edit Bike</h3><input type="hidden" id="editBikeId"><input type="text" id="bikeName" placeholder="Bike Name" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="bikePrice" placeholder="Price (Rs.)" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="bikeYear" placeholder="Year" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="bikeKm" placeholder="Kilometers" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="bikeLocation" placeholder="Location" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="bikeBrand" placeholder="Brand" class="w-full border p-3 rounded-lg mb-3"><input type="file" id="bikeImageUpload" accept="image/*" class="w-full border p-2 rounded-lg mb-3"><img id="bikeImagePreview" src="" class="w-20 h-20 object-cover rounded-lg mb-2 hidden"><input type="text" id="bikeImageUrl" placeholder="Or paste image URL" class="w-full border p-2 rounded-lg mb-3"><div class="flex justify-end gap-3"><button id="closeModalBtn" class="px-5 py-2 bg-gray-300 rounded-lg">Cancel</button><button id="saveBikeBtn" class="px-5 py-2 bg-blue-600 text-white rounded-lg">Save</button></div></div>
 </div>
 
+<!-- Edit Sold Modal (with image upload) -->
 <div id="editSoldModal" class="fixed inset-0 z-[300] hidden items-center justify-center modal-overlay p-4">
-    <div class="bg-white rounded-2xl w-full max-w-lg mx-auto p-6"><h3 id="soldModalTitle" class="text-xl font-bold mb-4">Sold Bike Details</h3><input type="hidden" id="editSoldId"><input type="text" id="soldName" placeholder="Bike Name" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="soldPrice" placeholder="Sold Price (Rs.)" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="soldMonthYear" placeholder="Month Year e.g., Mar 2025" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="soldBuyer" placeholder="Buyer Name" class="w-full border p-3 rounded-lg mb-3"><div class="flex justify-end gap-3"><button id="closeSoldModalBtn" class="px-5 py-2 bg-gray-300 rounded-lg">Cancel</button><button id="saveSoldBtn" class="px-5 py-2 bg-blue-600 text-white rounded-lg">Save</button></div></div>
+    <div class="bg-white rounded-2xl w-full max-w-lg mx-auto p-5 modal-inner-scroll max-h-[90vh] overflow-y-auto"><h3 id="soldModalTitle" class="text-xl font-bold mb-4">Sold Bike Details</h3><input type="hidden" id="editSoldId"><input type="text" id="soldName" placeholder="Bike Name" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="soldPrice" placeholder="Sold Price (Rs.)" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="soldMonthYear" placeholder="Month Year e.g., Mar 2025" class="w-full border p-3 rounded-lg mb-3"><input type="text" id="soldBuyer" placeholder="Buyer Name" class="w-full border p-3 rounded-lg mb-3"><input type="file" id="soldImageUpload" accept="image/*" class="w-full border p-2 rounded-lg mb-3"><img id="soldImagePreview" src="" class="w-20 h-20 object-cover rounded-lg mb-2 hidden"><input type="text" id="soldImageUrl" placeholder="Or paste image URL" class="w-full border p-2 rounded-lg mb-3"><div class="flex justify-end gap-3"><button id="closeSoldModalBtn" class="px-5 py-2 bg-gray-300 rounded-lg">Cancel</button><button id="saveSoldBtn" class="px-5 py-2 bg-blue-600 text-white rounded-lg">Save</button></div></div>
 </div>
 
 <script src="app.js"></script>
