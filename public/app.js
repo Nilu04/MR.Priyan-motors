@@ -1,4 +1,4 @@
-// app.js - Frontend Application
+// app.js - Frontend Application (FIXED VERSION)
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -9,31 +9,43 @@ let soldList = [];
 // API Helper functions
 async function apiCall(endpoint, options = {}) {
     const headers = {
-        'Content-Type': 'application/json',
         ...options.headers
     };
+    
+    // Don't set Content-Type for FormData - browser will set it with boundary
+    if (options.body && !(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+    
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers
-    });
-    
-    if (response.status === 401 || response.status === 403) {
-        logout();
-        showToast('Session expired. Please login again.');
+    try {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            ...options,
+            headers
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+            logout();
+            showToast('Session expired. Please login again.');
+            return null;
+        }
+        
+        return response;
+    } catch (error) {
+        console.error('API Error:', error);
+        showToast('Network error. Please try again.');
         return null;
     }
-    
-    return response;
 }
 
-function showToast(message) {
+function showToast(message, isError = false) {
     const toast = document.createElement('div');
-    toast.className = 'toast';
+    toast.className = `toast ${isError ? 'bg-red-500' : 'bg-green-500'}`;
     toast.textContent = message;
+    toast.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; padding: 12px 24px; border-radius: 50px; z-index: 1000; animation: fadeInOut 3s ease;';
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
@@ -55,15 +67,15 @@ const templates = {
     
     bikes: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Browse our premium collection</p></div>${token ? `<button onclick="openAddBikeModal()" class="bg-green-600 text-white px-5 py-2 rounded-xl font-bold"><i class="fas fa-plus"></i> Add Bike</button>` : ''}</div>
-            <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white">All</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white">Price Low-High</button></div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Browse our premium collection</p></div>${token ? `<button onclick="openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
+            <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price Low-High</button></div>
             <div id="bikesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     `,
     
     sold: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Sold archive with buyer details</p></div>${token ? `<button onclick="openAddSoldModal()" class="bg-green-600 text-white px-5 py-2 rounded-xl font-bold"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Sold archive with buyer details</p></div>${token ? `<button onclick="openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
             <div id="soldGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     `,
@@ -75,8 +87,8 @@ const templates = {
             <p class="text-xl text-gray-700 mt-3">Best Exchange Offers | Free Valuation | Instant Cash</p>
             <p class="text-lg text-gray-600 mt-2">Call or WhatsApp: <strong class="text-blue-600">075 350 3111</strong></p>
             <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="bg-white p-8 rounded-2xl shadow-xl"><i class="fab fa-whatsapp text-green-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">WhatsApp Valuation</h2><p class="text-gray-600 mt-2">Send bike details & photos for instant quote</p><a href="https://wa.me/94753503111" class="inline-block mt-6 bg-green-600 text-white px-8 py-3 rounded-full font-bold"><i class="fab fa-whatsapp mr-2"></i> Start Chat</a></div>
-                <div class="bg-white p-8 rounded-2xl shadow-xl"><i class="fas fa-phone-alt text-blue-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">Call for Exchange</h2><p class="text-gray-600 mt-2">Upgrade your bike with best buy-back offer</p><a href="tel:0753503111" class="inline-block mt-6 bg-black text-white px-8 py-3 rounded-full font-bold"><i class="fas fa-phone mr-2"></i> Call Now</a></div>
+                <div class="bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition"><i class="fab fa-whatsapp text-green-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">WhatsApp Valuation</h2><p class="text-gray-600 mt-2">Send bike details & photos for instant quote</p><a href="https://wa.me/94753503111" class="inline-block mt-6 bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-bold transition"><i class="fab fa-whatsapp mr-2"></i> Start Chat</a></div>
+                <div class="bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition"><i class="fas fa-phone-alt text-blue-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">Call for Exchange</h2><p class="text-gray-600 mt-2">Upgrade your bike with best buy-back offer</p><a href="tel:0753503111" class="inline-block mt-6 bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-full font-bold transition"><i class="fas fa-phone mr-2"></i> Call Now</a></div>
             </div>
             <div class="mt-16 bg-blue-50 rounded-2xl p-6 text-left"><h3 class="text-xl font-bold mb-3">📋 How It Works</h3><div class="grid md:grid-cols-3 gap-4 text-sm"><div class="flex gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span> Share bike details & photos</div><div class="flex gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span> Get instant valuation</div><div class="flex gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">3</span> Cash payment or exchange</div></div></div>
         </div>
@@ -90,8 +102,8 @@ const templates = {
                 <div class="flex items-start gap-4"><i class="fas fa-phone-alt text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Phone / WhatsApp</p><p class="text-gray-600">075 350 3111</p></div></div>
                 <div class="flex items-start gap-4"><i class="fas fa-clock text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Business Hours</p><p class="text-gray-600">Monday - Sunday: 9:00 AM - 8:00 PM</p></div></div>
                 <div class="flex items-start gap-4"><i class="fas fa-envelope text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Email</p><p class="text-gray-600">info@priyanmotors.lk</p></div></div></div>
-                <div class="mt-8 flex gap-4"><a href="https://wa.me/94753503111" class="bg-green-600 text-white px-6 py-3 rounded-xl font-bold"><i class="fab fa-whatsapp mr-2"></i> WhatsApp Us</a><a href="tel:0753503111" class="bg-black text-white px-6 py-3 rounded-xl font-bold"><i class="fas fa-phone mr-2"></i> Call Now</a></div></div>
-                <div class="bg-gray-200 rounded-2xl h-80 flex flex-col items-center justify-center"><i class="fas fa-map-marked-alt text-4xl text-gray-500 mb-3"></i><p class="text-gray-600 text-center px-4">📍 Main Street, Kiran<br>Batticaloa, Sri Lanka</p></div>
+                <div class="mt-8 flex gap-4 flex-wrap"><a href="https://wa.me/94753503111" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-whatsapp mr-2"></i> WhatsApp Us</a><a href="tel:0753503111" class="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fas fa-phone mr-2"></i> Call Now</a></div></div>
+                <div class="bg-gray-200 rounded-2xl h-80 flex flex-col items-center justify-center"><i class="fas fa-map-marked-alt text-4xl text-gray-500 mb-3"></i><p class="text-gray-600 text-center px-4">📍 Main Street, Kiran<br>Batticaloa, Sri Lanka</p><p class="text-xs text-gray-500 mt-2">Google Map location available</p></div>
             </div>
         </div>
     `
@@ -134,15 +146,15 @@ function renderBikes() {
     const grid = document.getElementById('bikesGrid');
     if (!grid) return;
     if (bikes.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-12">No bikes available. Admin can add new bikes.</div>';
+        grid.innerHTML = '<div class="col-span-full text-center py-12"><i class="fas fa-motorcycle text-4xl text-gray-300 mb-3 block"></i><p class="text-gray-500">No bikes available. Admin can add new bikes.</p></div>';
         return;
     }
     grid.innerHTML = bikes.map(bike => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border">
-            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
-            <div class="p-4"><h3 class="text-xl font-black">${bike.name}</h3><div class="text-blue-600 font-bold text-xl">${bike.price}</div>
+        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border hover:shadow-lg transition">
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+            <div class="p-4"><h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3><div class="text-blue-600 font-bold text-xl">${bike.price}</div>
             <div class="grid grid-cols-2 gap-1 text-xs text-gray-500 mt-2"><span><i class="far fa-calendar"></i> ${bike.year}</span><span><i class="fas fa-road"></i> ${bike.km}</span><span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span><span><i class="fas fa-tag"></i> ${bike.brand}</span></div>
-            ${token ? `<div class="flex gap-2 mt-4"><button onclick="editBike(${bike.id})" class="bg-yellow-500 text-white px-3 py-1 rounded text-xs">Edit</button><button onclick="deleteBike(${bike.id})" class="bg-red-500 text-white px-3 py-1 rounded text-xs">Delete</button></div>` : `<a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${bike.name}" class="mt-4 block bg-blue-600 text-white text-center py-2 rounded-xl text-sm">Inquire Now</a>`}
+            ${token ? `<div class="flex gap-2 mt-4"><button onclick="editBike(${bike.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="deleteBike(${bike.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" class="mt-4 block bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-xl text-sm transition"><i class="fab fa-whatsapp mr-1"></i> Inquire Now</a>`}
             </div>
         </div>
     `).join('');
@@ -152,16 +164,26 @@ function renderSold() {
     const grid = document.getElementById('soldGrid');
     if (!grid) return;
     if (soldList.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-12">No sold records yet.</div>';
+        grid.innerHTML = '<div class="col-span-full text-center py-12"><i class="fas fa-check-circle text-4xl text-gray-300 mb-3 block"></i><p class="text-gray-500">No sold records yet.</p></div>';
         return;
     }
     grid.innerHTML = soldList.map(s => `
-        <div class="bg-white rounded-2xl shadow-md sold-card p-5 border-l-8 border-green-500">
-            <h3 class="text-xl font-bold">${s.name}</h3><p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
-            <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${s.buyer}</p>
-            ${token ? `<div class="flex gap-3 mt-4"><button onclick="editSold(${s.id})" class="bg-yellow-500 text-white px-3 py-1.5 rounded-lg text-xs">Edit</button><button onclick="deleteSold(${s.id})" class="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs">Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
+        <div class="bg-white rounded-2xl shadow-md sold-card p-5 border-l-8 border-green-500 hover:shadow-lg transition">
+            <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3><p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
+            <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
+            ${token ? `<div class="flex gap-3 mt-4"><button onclick="editSold(${s.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="deleteSold(${s.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
         </div>
     `).join('');
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
 }
 
 // Authentication
@@ -170,7 +192,13 @@ async function checkAuth() {
     const response = await apiCall('/api/verify-token');
     if (response && response.ok) {
         const data = await response.json();
-        currentUser = data.user;
+        // Get full user info
+        const userResponse = await apiCall('/api/me');
+        if (userResponse && userResponse.ok) {
+            currentUser = await userResponse.json();
+        } else {
+            currentUser = data.user;
+        }
         updateUILoggedIn();
         return true;
     }
@@ -214,8 +242,8 @@ async function login(username, password) {
         updateUILoggedIn();
         closeAllModals();
         showToast('Login successful!');
-        loadBikes();
-        loadSold();
+        if (currentPage === 'bikes') loadBikes();
+        if (currentPage === 'sold') loadSold();
         return true;
     } else {
         document.getElementById('loginError').classList.remove('hidden');
@@ -240,14 +268,19 @@ window.editBike = (id) => {
         document.getElementById('modalTitle').innerText = 'Edit Bike';
         document.getElementById('editBikeId').value = bike.id;
         document.getElementById('bikeName').value = bike.name;
-        document.getElementById('bikePrice').value = bike.price.replace('Rs.', '').replace(/,/g, '');
+        document.getElementById('bikePrice').value = bike.price.replace('Rs.', '').replace(/,/g, '').trim();
         document.getElementById('bikeYear').value = bike.year;
         document.getElementById('bikeKm').value = bike.km;
         document.getElementById('bikeLocation').value = bike.location;
         document.getElementById('bikeBrand').value = bike.brand;
         document.getElementById('bikeImageUrl').value = bike.image || '';
-        document.getElementById('bikeImagePreview').src = bike.image || '';
-        document.getElementById('bikeImagePreview').classList.toggle('hidden', !bike.image);
+        const preview = document.getElementById('bikeImagePreview');
+        if (bike.image) {
+            preview.src = bike.image;
+            preview.classList.remove('hidden');
+        } else {
+            preview.classList.add('hidden');
+        }
         document.getElementById('editBikeModal').classList.remove('hidden');
     }
 };
@@ -267,7 +300,7 @@ window.editSold = (id) => {
         document.getElementById('soldModalTitle').innerText = 'Edit Sold Entry';
         document.getElementById('editSoldId').value = sold.id;
         document.getElementById('soldName').value = sold.name;
-        document.getElementById('soldPrice').value = sold.sold_price.replace('Rs.', '').replace(/,/g, '');
+        document.getElementById('soldPrice').value = sold.sold_price.replace('Rs.', '').replace(/,/g, '').trim();
         document.getElementById('soldMonthYear').value = sold.month_year;
         document.getElementById('soldBuyer').value = sold.buyer;
         document.getElementById('editSoldModal').classList.remove('hidden');
@@ -293,6 +326,7 @@ window.openAddBikeModal = () => {
     document.getElementById('bikeLocation').value = '';
     document.getElementById('bikeBrand').value = '';
     document.getElementById('bikeImageUrl').value = '';
+    document.getElementById('bikeImageUpload').value = '';
     document.getElementById('bikeImagePreview').classList.add('hidden');
     document.getElementById('editBikeModal').classList.remove('hidden');
 };
@@ -335,11 +369,21 @@ document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
     const url = id ? `/api/bikes/${id}` : '/api/bikes';
     const method = id ? 'PUT' : 'POST';
     
-    const response = await apiCall(url, { method, body: formData });
-    if (response && response.ok) {
-        showToast(id ? 'Bike updated' : 'Bike added');
-        closeAllModals();
-        loadBikes();
+    try {
+        const response = await apiCall(url, { method, body: formData });
+        if (response && response.ok) {
+            showToast(id ? 'Bike updated successfully!' : 'Bike added successfully!');
+            closeAllModals();
+            loadBikes();
+            // Clear form
+            document.getElementById('bikeImageUpload').value = '';
+        } else if (response) {
+            const error = await response.json();
+            showToast(error.error || 'Failed to save bike', true);
+        }
+    } catch (error) {
+        console.error('Save error:', error);
+        showToast('Error saving bike. Please try again.', true);
     }
 });
 
@@ -364,7 +408,34 @@ document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
     }
 });
 
-// Event Listeners
+// Profile Picture Upload
+document.getElementById('uploadProfilePicBtn')?.addEventListener('click', () => {
+    document.getElementById('profilePicInput').click();
+});
+
+document.getElementById('profilePicInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await apiCall('/api/upload-profile-picture', {
+        method: 'POST',
+        body: formData
+    });
+    if (response && response.ok) {
+        const data = await response.json();
+        if (currentUser) currentUser.profile_picture = data.imageUrl;
+        updateUILoggedIn();
+        showToast('Profile picture updated!');
+        closeAllModals();
+    } else {
+        showToast('Failed to upload profile picture', true);
+    }
+});
+
+// Event Listeners for Modals
 document.getElementById('doLoginBtn')?.addEventListener('click', async () => {
     const username = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
@@ -381,11 +452,21 @@ document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
     logout();
 });
 
-document.getElementById('profileMenuItem')?.addEventListener('click', (e) => {
+document.getElementById('profileMenuItem')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    document.getElementById('profileUsername').innerText = currentUser?.username || 'Guest';
-    document.getElementById('profileRole').innerText = token ? 'Administrator' : 'Guest User';
-    document.getElementById('profilePreview').src = currentUser?.profile_picture || '';
+    if (token && currentUser) {
+        // Refresh user info
+        const response = await apiCall('/api/me');
+        if (response && response.ok) {
+            currentUser = await response.json();
+        }
+        document.getElementById('profileUsername').innerText = currentUser?.username || 'Admin';
+        document.getElementById('profileRole').innerText = 'Administrator';
+        document.getElementById('profilePreview').src = currentUser?.profile_picture || '';
+    } else {
+        document.getElementById('profileUsername').innerText = 'Guest';
+        document.getElementById('profileRole').innerText = 'Guest User';
+    }
     document.getElementById('profileModal').classList.remove('hidden');
 });
 
@@ -406,10 +487,12 @@ document.getElementById('changeUsernameMenuItem')?.addEventListener('click', (e)
     document.getElementById('changeUsernameModal').classList.remove('hidden');
 });
 
-document.getElementById('editLogoMenuItem')?.addEventListener('click', (e) => {
+document.getElementById('editLogoMenuItem')?.addEventListener('click', async (e) => {
     e.preventDefault();
     if (!token) { alert('Please login first'); return; }
-    document.getElementById('logoPreview').src = document.getElementById('siteLogo').src;
+    const currentLogo = document.getElementById('siteLogo').src;
+    document.getElementById('logoPreview').src = currentLogo;
+    document.getElementById('logoUrlInput').value = currentLogo;
     document.getElementById('editLogoModal').classList.remove('hidden');
 });
 
@@ -418,6 +501,7 @@ document.getElementById('createUserMenuItem')?.addEventListener('click', (e) => 
     document.getElementById('createUserModal').classList.remove('hidden');
 });
 
+// Password change handler
 document.getElementById('savePasswordBtn')?.addEventListener('click', async () => {
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
@@ -442,12 +526,14 @@ document.getElementById('savePasswordBtn')?.addEventListener('click', async () =
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
         document.getElementById('confirmPassword').value = '';
+        document.getElementById('pwdError').innerText = '';
     } else {
         const error = await response.json();
         document.getElementById('pwdError').innerText = error.error || 'Failed to change password';
     }
 });
 
+// Username change handler
 document.getElementById('saveUsernameBtn')?.addEventListener('click', async () => {
     const newUsername = document.getElementById('newUsername').value;
     if (!newUsername) {
@@ -463,18 +549,26 @@ document.getElementById('saveUsernameBtn')?.addEventListener('click', async () =
         const data = await response.json();
         token = data.token;
         localStorage.setItem('token', token);
-        currentUser.username = data.username;
+        if (currentUser) currentUser.username = data.username;
         showToast('Username changed successfully');
         closeAllModals();
         updateUILoggedIn();
+        document.getElementById('newUsername').value = '';
+        document.getElementById('usernameError').innerText = '';
     } else {
         document.getElementById('usernameError').innerText = 'Username already exists';
     }
 });
 
+// Create user handler
 document.getElementById('doCreateUserBtn')?.addEventListener('click', async () => {
     const username = document.getElementById('newAdminUsername').value;
     const password = document.getElementById('newAdminPassword').value;
+    
+    if (!username || !password) {
+        document.getElementById('createUserError').innerText = 'Username and password required';
+        return;
+    }
     
     const response = await apiCall('/api/register', {
         method: 'POST',
@@ -485,12 +579,14 @@ document.getElementById('doCreateUserBtn')?.addEventListener('click', async () =
         closeAllModals();
         document.getElementById('newAdminUsername').value = '';
         document.getElementById('newAdminPassword').value = '';
+        document.getElementById('createUserError').innerText = '';
     } else {
         const error = await response.json();
         document.getElementById('createUserError').innerText = error.error || 'Failed to create user';
     }
 });
 
+// Logo upload handler
 document.getElementById('saveLogoBtn')?.addEventListener('click', async () => {
     const logoUrl = document.getElementById('logoUrlInput').value;
     const logoFile = document.getElementById('logoUploadInput').files[0];
@@ -511,47 +607,30 @@ document.getElementById('saveLogoBtn')?.addEventListener('click', async () => {
     }
 });
 
-document.getElementById('uploadProfilePicBtn')?.addEventListener('click', () => {
-    document.getElementById('profilePicInput').click();
-});
-
-document.getElementById('profilePicInput')?.addEventListener('change', async (e) => {
+// Logo upload input preview
+document.getElementById('logoUploadInput')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await apiCall('/api/upload-profile-picture', {
-        method: 'POST',
-        body: formData
-    });
-    if (response && response.ok) {
-        const data = await response.json();
-        currentUser.profile_picture = data.imageUrl;
-        updateUILoggedIn();
-        showToast('Profile picture updated');
-        closeAllModals();
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            document.getElementById('logoPreview').src = ev.target.result;
+            document.getElementById('logoUrlInput').value = ev.target.result;
+        };
+        reader.readAsDataURL(file);
     }
 });
 
-// Mobile menu
-document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
-    document.getElementById('mobileTabs')?.classList.toggle('hidden');
-});
-
-// Filter handlers
-document.addEventListener('click', (e) => {
-    if (e.target.dataset?.filter) {
-        const filter = e.target.dataset.filter;
-        document.querySelectorAll('[data-filter]').forEach(btn => {
-            btn.classList.remove('active-filter', 'bg-blue-600', 'text-white');
-        });
-        e.target.classList.add('active-filter', 'bg-blue-600', 'text-white');
-        if (filter === 'all') bikes.sort((a, b) => b.id - a.id);
-        else if (filter === 'price-desc') bikes.sort((a, b) => b.price_num - a.price_num);
-        else if (filter === 'price-asc') bikes.sort((a, b) => a.price_num - b.price_num);
-        renderBikes();
+// Bike image upload preview
+document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            document.getElementById('bikeImagePreview').src = ev.target.result;
+            document.getElementById('bikeImagePreview').classList.remove('hidden');
+            document.getElementById('bikeImageUrl').value = '';
+        };
+        reader.readAsDataURL(file);
     }
 });
 
@@ -564,12 +643,13 @@ function closeAllModals() {
     });
 }
 
-document.querySelectorAll('[id$="ModalBtn"], [id$="Modal"] button').forEach(btn => {
-    if (btn.id?.includes('close') || btn.id?.includes('Cancel')) {
+document.querySelectorAll('[id$="ModalBtn"], [id*="close"]').forEach(btn => {
+    if (btn.id && (btn.id.includes('close') || btn.id.includes('Close'))) {
         btn.addEventListener('click', closeAllModals);
     }
 });
 
+// Dropdown and mobile menu
 document.addEventListener('click', (e) => {
     if (!document.getElementById('accountDropdown')?.contains(e.target) && e.target !== document.getElementById('accountBtn')) {
         document.getElementById('accountDropdown')?.classList.add('hidden');
@@ -579,6 +659,28 @@ document.addEventListener('click', (e) => {
 document.getElementById('accountBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('accountDropdown')?.classList.toggle('hidden');
+});
+
+document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
+    document.getElementById('mobileTabs')?.classList.toggle('hidden');
+});
+
+// Filter handlers
+document.addEventListener('click', (e) => {
+    if (e.target.dataset?.filter) {
+        const filter = e.target.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.classList.remove('active-filter', 'bg-blue-600', 'text-white');
+            btn.classList.add('bg-white', 'text-gray-700');
+        });
+        e.target.classList.add('active-filter', 'bg-blue-600', 'text-white');
+        e.target.classList.remove('bg-white', 'text-gray-700');
+        
+        if (filter === 'all') bikes.sort((a, b) => b.id - a.id);
+        else if (filter === 'price-desc') bikes.sort((a, b) => b.price_num - a.price_num);
+        else if (filter === 'price-asc') bikes.sort((a, b) => a.price_num - b.price_num);
+        renderBikes();
+    }
 });
 
 // Initialize
@@ -606,5 +708,10 @@ async function init() {
     
     navigateTo('home');
 }
+
+// Add CSS animation for toasts
+const style = document.createElement('style');
+style.textContent = `@keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } } .toast { animation: fadeInOut 3s ease; }`;
+document.head.appendChild(style);
 
 init();
