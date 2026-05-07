@@ -487,3 +487,27 @@ initializeData().then(() => {
     console.log(`📁 MongoDB Atlas connected`);
   });
 });
+
+// Add this to your server.js - Get current user with full profile
+app.get('/api/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json({
+      id: user.id,
+      username: user.username,
+      profile_picture: user.profile_picture || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get user info' });
+  }
+});
+
+// Add this endpoint to serve profile picture separately
+app.get('/api/profile-picture', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('profile_picture');
+    res.json({ profile_picture: user.profile_picture || null });
+  } catch (err) {
+    res.json({ profile_picture: null });
+  }
+});
