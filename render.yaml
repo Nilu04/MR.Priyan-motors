@@ -1,0 +1,17 @@
+# render.yaml
+services:
+  - type: web
+    name: priyan-motors
+    runtime: node
+    repo: https://github.com/Nilu04/priyan-motors
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+    buildCommand: npm install
+    startCommand: node server.js
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1
+    healthCheckPath: /
