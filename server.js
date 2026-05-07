@@ -1,4 +1,4 @@
-// server.js - Backend API server (ADDED SOLD IMAGE SUPPORT)
+// server.js - Backend API server (FIXED PERSISTENT STORAGE)
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -17,19 +17,27 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+
+// IMPORTANT: For Render.com, use /opt/render/project/src/uploads or local ./uploads
+// This ensures persistence across restarts
+const UPLOAD_DIR = process.env.RENDER ? '/opt/render/project/src/uploads' : './uploads';
+const UPLOAD_SUBDIRS = ['bikes', 'logos', 'profiles', 'sold'];
 
 // Ensure uploads directory exists
-const uploadDirs = ['./uploads', './uploads/bikes', './uploads/logos', './uploads/profiles', './uploads/sold'];
-uploadDirs.forEach(dir => {
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-        console.log(`Created directory: ${dir}`);
+UPLOAD_SUBDIRS.forEach(subdir => {
+    const dirPath = path.join(UPLOAD_DIR, subdir);
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        console.log(`Created directory: ${dirPath}`);
     }
 });
 
-// Database setup
-const db = new sqlite3.Database('./database.db');
+// Serve static files from uploads directory
+app.use('/uploads', express.static(UPLOAD_DIR));
+
+// Database setup - Use persistent location on Render
+const DB_PATH = process.env.RENDER ? '/opt/render/project/src/database.db' : './database.db';
+const db = new sqlite3.Database(DB_PATH);
 
 // Initialize database tables
 db.serialize(() => {
@@ -114,16 +122,16 @@ db.serialize(() => {
     });
 });
 
-// Configure multer for file uploads
+// Configure multer for file uploads with absolute paths
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        let uploadPath = './uploads/bikes';
+        let uploadPath = path.join(UPLOAD_DIR, 'bikes');
         if (req.url.includes('profile')) {
-            uploadPath = './uploads/profiles';
+            uploadPath = path.join(UPLOAD_DIR, 'profiles');
         } else if (req.url.includes('logo')) {
-            uploadPath = './uploads/logos';
+            uploadPath = path.join(UPLOAD_DIR, 'logos');
         } else if (req.url.includes('sold')) {
-            uploadPath = './uploads/sold';
+            uploadPath = path.join(UPLOAD_DIR, 'sold');
         }
         cb(null, uploadPath);
     },
@@ -321,7 +329,7 @@ app.delete('/api/bikes/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ============= SOLD BIKES ROUTES (with image support) =============
+// ============= SOLD BIKES ROUTES =============
 app.get('/api/sold', (req, res) => {
     db.all('SELECT * FROM sold ORDER BY id DESC', [], (err, rows) => {
         if (err) {
@@ -454,5 +462,7 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Upload directory: ${UPLOAD_DIR}`);
+    console.log(`Database path: ${DB_PATH}`);
     console.log(`Visit http://localhost:${PORT} to see your app`);
 });
