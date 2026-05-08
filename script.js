@@ -1,4 +1,4 @@
-// script.js - Shared JavaScript for all pages
+// script.js - Complete Fixed Version
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -79,7 +79,7 @@ function renderBikes() {
         return;
     }
     grid.innerHTML = bikes.map(bike => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border cursor-pointer" onclick="window.showBikeDetails('${bike._id}')">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border cursor-pointer" onclick="showBikeDetails('${bike._id}')">
             <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
             <div class="p-4">
                 <h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3>
@@ -92,7 +92,7 @@ function renderBikes() {
                 </div>
                 <div class="mt-3 flex gap-2">
                     <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="text-xs text-green-600" onclick="event.stopPropagation()"><i class="fab fa-whatsapp"></i> Inquire</a>
-                    ${token ? `<button onclick="event.stopPropagation(); window.editBike('${bike._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); window.deleteBike('${bike._id}')" class="text-xs text-red-600">🗑️ Delete</button><button onclick="event.stopPropagation(); window.markAsSold('${bike._id}')" class="text-xs text-purple-600">🏷️ Mark Sold</button>` : ''}
+                    ${token ? `<button onclick="event.stopPropagation(); editBike('${bike._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); deleteBike('${bike._id}')" class="text-xs text-red-600">🗑️ Delete</button><button onclick="event.stopPropagation(); markAsSold('${bike._id}')" class="text-xs text-purple-600">🏷️ Mark Sold</button>` : ''}
                 </div>
             </div>
         </div>
@@ -113,12 +113,12 @@ function renderSold() {
         return;
     }
     grid.innerHTML = soldList.map(s => `
-        <div class="bg-white rounded-2xl shadow-md sold-card border-l-8 border-green-500 cursor-pointer p-4" onclick="window.showSoldDetails('${s._id}')">
+        <div class="bg-white rounded-2xl shadow-md sold-card border-l-8 border-green-500 cursor-pointer p-4" onclick="showSoldDetails('${s._id}')">
             <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
             <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
             <p class="text-sm text-gray-600"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-            ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); window.showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
-            ${token ? `<div class="flex gap-2 mt-3"><button onclick="event.stopPropagation(); window.editSold('${s._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); window.deleteSold('${s._id}')" class="text-xs text-red-600">🗑️ Delete</button></div>` : ''}
+            ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
+            ${token ? `<div class="flex gap-2 mt-3"><button onclick="event.stopPropagation(); editSold('${s._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); deleteSold('${s._id}')" class="text-xs text-red-600">🗑️ Delete</button></div>` : ''}
         </div>
     `).join('');
     
@@ -130,11 +130,11 @@ function renderSold() {
 }
 
 // ============= BIKE DETAILS =============
-window.showBikeDetails = async function(bikeId) {
+async function showBikeDetails(bikeId) {
     const bike = bikes.find(b => b._id === bikeId);
     if (!bike) return;
     
-    // Load comments from server
+    // Load comments
     const commentsResponse = await apiCall(`/api/comments/${bikeId}`);
     const comments = commentsResponse && commentsResponse.ok ? await commentsResponse.json() : [];
     
@@ -145,26 +145,9 @@ window.showBikeDetails = async function(bikeId) {
                     <span class="font-semibold text-blue-600">${escapeHtml(comment.user)}</span>
                     <span class="text-xs text-gray-400 ml-2">${comment.date}</span>
                 </div>
-                <div>
-                    <button onclick="window.toggleReplyForm('${comment._id}')" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
-                    ${token ? `<button onclick="window.deleteComment('${comment._id}', '${bikeId}')" class="text-xs text-red-500 hover:text-red-700">Delete</button>` : ''}
-                </div>
+                ${token ? `<button onclick="deleteComment('${comment._id}', '${bikeId}')" class="text-xs text-red-500 hover:text-red-700">Delete</button>` : ''}
             </div>
             <p class="text-gray-700 mt-1">${escapeHtml(comment.text)}</p>
-            <div id="replies-${comment._id}" class="ml-4 mt-2">
-                ${(comment.replies || []).map(reply => `
-                    <div class="bg-gray-100 rounded-lg p-2 mb-2">
-                        <div><span class="font-semibold text-green-600">${escapeHtml(reply.user)}</span> <span class="text-xs text-gray-400">${reply.date}</span></div>
-                        <p class="text-gray-700 text-sm">${escapeHtml(reply.text)}</p>
-                    </div>
-                `).join('')}
-            </div>
-            <div id="reply-form-${comment._id}" class="hidden mt-2">
-                <div class="flex gap-2">
-                    <input type="text" id="reply-input-${comment._id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
-                    <button onclick="window.submitReply('${comment._id}', '${bikeId}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
-                </div>
-            </div>
         </div>
     `).join('');
     
@@ -174,7 +157,7 @@ window.showBikeDetails = async function(bikeId) {
                 <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
                 <button onclick="document.getElementById('bikeDetailsModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button>
             </div>
-            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4 cursor-pointer" onclick="window.showImagePreview('${bike.image}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4 cursor-pointer" onclick="showImagePreview('${bike.image}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
             <div class="grid grid-cols-2 gap-4">
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold">${bike.price}</p></div>
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
@@ -183,11 +166,11 @@ window.showBikeDetails = async function(bikeId) {
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
             </div>
             <div class="mt-6 border-t pt-4">
-                <h3 class="text-lg font-bold mb-3">💬 Comments & Questions</h3>
+                <h3 class="text-lg font-bold mb-3">💬 Comments</h3>
                 <div class="mb-4">
                     <div class="flex gap-2">
                         <input type="text" id="comment-input" placeholder="Write a comment..." class="flex-1 border rounded-lg px-4 py-2">
-                        <button onclick="window.submitComment('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Post</button>
+                        <button onclick="submitComment('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Post</button>
                     </div>
                 </div>
                 <div id="comments-list" class="max-h-60 overflow-y-auto">
@@ -196,7 +179,7 @@ window.showBikeDetails = async function(bikeId) {
             </div>
             <div class="mt-6 flex gap-3">
                 <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="flex-1 bg-green-600 text-white text-center py-2 rounded-lg">Inquire on WhatsApp</a>
-                ${token ? `<button onclick="window.editBike('${bike._id}'); document.getElementById('bikeDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit Bike</button>` : ''}
+                ${token ? `<button onclick="editBike('${bike._id}'); document.getElementById('bikeDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit Bike</button>` : ''}
                 <button onclick="document.getElementById('bikeDetailsModal').classList.add('hidden')" class="flex-1 bg-gray-300 py-2 rounded-lg">Close</button>
             </div>
         </div>
@@ -211,14 +194,30 @@ window.showBikeDetails = async function(bikeId) {
     }
     modal.innerHTML = modalHtml;
     modal.classList.remove('hidden');
-};
+}
+
+async function submitComment(bikeId) {
+    const input = document.getElementById('comment-input');
+    const text = input.value;
+    if (!text.trim()) return;
+    const userName = token && currentUser ? currentUser.username : 'Customer';
+    await apiCall('/api/comments', { method: 'POST', body: JSON.stringify({ bikeId, text, user: userName }) });
+    input.value = '';
+    await showBikeDetails(bikeId);
+}
+
+async function deleteComment(commentId, bikeId) {
+    if (!confirm('Delete this comment?')) return;
+    await apiCall(`/api/comments/${commentId}`, { method: 'DELETE' });
+    await showBikeDetails(bikeId);
+}
 
 // ============= SOLD DETAILS =============
-window.showSoldDetails = async function(soldId) {
+async function showSoldDetails(soldId) {
     const sold = soldList.find(s => s._id === soldId);
     if (!sold) return;
     
-    // Load feedbacks from server
+    // Load feedbacks
     const feedbacksResponse = await apiCall(`/api/feedbacks/${soldId}`);
     const feedbacks = feedbacksResponse && feedbacksResponse.ok ? await feedbacksResponse.json() : [];
     
@@ -230,26 +229,9 @@ window.showSoldDetails = async function(soldId) {
                     <span class="font-semibold text-blue-600">${escapeHtml(fb.user)}</span>
                     <span class="text-xs text-gray-400 ml-2">${fb.date}</span>
                 </div>
-                <div>
-                    <button onclick="window.toggleFeedbackReplyForm('${fb._id}')" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
-                    ${token ? `<button onclick="window.deleteFeedback('${fb._id}', '${soldId}')" class="text-xs text-red-500 hover:text-red-700">Delete</button>` : ''}
-                </div>
+                ${token ? `<button onclick="deleteFeedback('${fb._id}', '${soldId}')" class="text-xs text-red-500 hover:text-red-700">Delete</button>` : ''}
             </div>
             <p class="text-gray-700 mt-1">${escapeHtml(fb.comment)}</p>
-            <div id="feedback-replies-${fb._id}" class="ml-4 mt-2">
-                ${(fb.replies || []).map(reply => `
-                    <div class="bg-gray-100 rounded-lg p-2 mb-2">
-                        <div><span class="font-semibold text-green-600">${escapeHtml(reply.user)}</span> <span class="text-xs text-gray-400">${reply.date}</span></div>
-                        <p class="text-gray-700 text-sm">${escapeHtml(reply.text)}</p>
-                    </div>
-                `).join('')}
-            </div>
-            <div id="feedback-reply-form-${fb._id}" class="hidden mt-2">
-                <div class="flex gap-2">
-                    <input type="text" id="feedback-reply-input-${fb._id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
-                    <button onclick="window.submitFeedbackReply('${fb._id}', '${soldId}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
-                </div>
-            </div>
         </div>
     `).join('');
     
@@ -269,18 +251,18 @@ window.showSoldDetails = async function(soldId) {
                 <h3 class="text-lg font-bold mb-3">⭐ Customer Feedback</h3>
                 <div class="mb-4">
                     <div class="flex gap-1 mb-2" id="rating-stars">
-                        ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer" data-rating="${i}" onclick="window.setRating(${i})"></i>`).join('')}
+                        ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer" data-rating="${i}" onclick="setRating(${i})"></i>`).join('')}
                     </div>
                     <input type="hidden" id="selected-rating" value="0">
                     <textarea id="feedback-comment" placeholder="Share your experience..." class="w-full border rounded-lg px-4 py-2 mb-2" rows="2"></textarea>
-                    <button onclick="window.submitFeedback('${soldId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg">Submit Feedback</button>
+                    <button onclick="submitFeedback('${soldId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg">Submit Feedback</button>
                 </div>
                 <div id="feedbacks-list" class="max-h-60 overflow-y-auto">
                     ${feedbacksHtml || '<p class="text-gray-500 text-center py-4">No feedback yet.</p>'}
                 </div>
             </div>
             <div class="mt-6 flex gap-3">
-                ${token ? `<button onclick="window.editSold('${sold._id}'); document.getElementById('soldDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit Entry</button>` : ''}
+                ${token ? `<button onclick="editSold('${sold._id}'); document.getElementById('soldDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit Entry</button>` : ''}
                 <button onclick="document.getElementById('soldDetailsModal').classList.add('hidden')" class="flex-1 bg-gray-300 py-2 rounded-lg">Close</button>
             </div>
         </div>
@@ -295,58 +277,27 @@ window.showSoldDetails = async function(soldId) {
     }
     modal.innerHTML = modalHtml;
     modal.classList.remove('hidden');
-};
+}
 
-// ============= COMMENT FUNCTIONS =============
-window.submitComment = async function(bikeId) {
-    const input = document.getElementById('comment-input');
-    const text = input.value;
-    if (!text.trim()) return;
-    const userName = token && currentUser ? currentUser.username : 'Customer';
-    await apiCall('/api/comments', { method: 'POST', body: JSON.stringify({ bikeId, text, user: userName }) });
-    input.value = '';
-    await window.showBikeDetails(bikeId);
-};
-
-window.toggleReplyForm = function(commentId) {
-    const form = document.getElementById(`reply-form-${commentId}`);
-    if (form) form.classList.toggle('hidden');
-};
-
-window.submitReply = async function(commentId, bikeId) {
-    const input = document.getElementById(`reply-input-${commentId}`);
-    const text = input.value;
-    if (!text.trim()) return;
-    const userName = token && currentUser ? currentUser.username : 'Admin';
-    await apiCall(`/api/comments/${commentId}/reply`, { method: 'POST', body: JSON.stringify({ text, user: userName }) });
-    input.value = '';
-    document.getElementById(`reply-form-${commentId}`).classList.add('hidden');
-    await window.showBikeDetails(bikeId);
-};
-
-window.deleteComment = async function(commentId, bikeId) {
-    if (!confirm('Delete this comment?')) return;
-    await apiCall(`/api/comments/${commentId}`, { method: 'DELETE' });
-    await window.showBikeDetails(bikeId);
-};
-
-// ============= FEEDBACK FUNCTIONS =============
 let currentRating = 0;
-window.setRating = function(rating) {
+function setRating(rating) {
     currentRating = rating;
     document.getElementById('selected-rating').value = rating;
     for (let i = 1; i <= 5; i++) {
         const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
         if (star) {
-            if (i <= rating) star.classList.remove('text-gray-300');
-            else star.classList.add('text-gray-300');
-            if (i <= rating) star.classList.add('text-yellow-500');
-            else star.classList.remove('text-yellow-500');
+            if (i <= rating) {
+                star.classList.remove('text-gray-300');
+                star.classList.add('text-yellow-500');
+            } else {
+                star.classList.remove('text-yellow-500');
+                star.classList.add('text-gray-300');
+            }
         }
     }
-};
+}
 
-window.submitFeedback = async function(soldId) {
+async function submitFeedback(soldId) {
     const rating = parseInt(document.getElementById('selected-rating').value);
     const comment = document.getElementById('feedback-comment').value;
     if (rating === 0) { showToast('Please select a rating!', true); return; }
@@ -360,33 +311,17 @@ window.submitFeedback = async function(soldId) {
         const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
         if (star) star.classList.remove('text-yellow-500');
     }
-    await window.showSoldDetails(soldId);
-};
+    await showSoldDetails(soldId);
+}
 
-window.toggleFeedbackReplyForm = function(feedbackId) {
-    const form = document.getElementById(`feedback-reply-form-${feedbackId}`);
-    if (form) form.classList.toggle('hidden');
-};
-
-window.submitFeedbackReply = async function(feedbackId, soldId) {
-    const input = document.getElementById(`feedback-reply-input-${feedbackId}`);
-    const text = input.value;
-    if (!text.trim()) return;
-    const userName = token && currentUser ? currentUser.username : 'Admin';
-    await apiCall(`/api/feedbacks/${feedbackId}/reply`, { method: 'POST', body: JSON.stringify({ text, user: userName }) });
-    input.value = '';
-    document.getElementById(`feedback-reply-form-${feedbackId}`).classList.add('hidden');
-    await window.showSoldDetails(soldId);
-};
-
-window.deleteFeedback = async function(feedbackId, soldId) {
+async function deleteFeedback(feedbackId, soldId) {
     if (!confirm('Delete this feedback?')) return;
     await apiCall(`/api/feedbacks/${feedbackId}`, { method: 'DELETE' });
-    await window.showSoldDetails(soldId);
-};
+    await showSoldDetails(soldId);
+}
 
 // ============= EDIT FUNCTIONS =============
-window.editBike = function(id) {
+function editBike(id) {
     const bike = bikes.find(b => b._id === id);
     if (!bike) return;
     document.getElementById('editBikeId').value = bike._id;
@@ -401,17 +336,17 @@ window.editBike = function(id) {
     if (bike.image) { preview.src = bike.image; preview.classList.remove('hidden'); }
     else { preview.classList.add('hidden'); }
     document.getElementById('editBikeModal').classList.remove('hidden');
-};
+}
 
-window.deleteBike = async function(id) {
+async function deleteBike(id) {
     if (!confirm('Delete this bike?')) return;
     await apiCall(`/api/bikes/${id}`, { method: 'DELETE' });
     showToast('Bike deleted');
     loadBikes();
     closeAllModals();
-};
+}
 
-window.editSold = function(id) {
+function editSold(id) {
     const sold = soldList.find(s => s._id === id);
     if (!sold) return;
     document.getElementById('editSoldId').value = sold._id;
@@ -424,17 +359,17 @@ window.editSold = function(id) {
     if (sold.image) { preview.src = sold.image; preview.classList.remove('hidden'); }
     else { preview.classList.add('hidden'); }
     document.getElementById('editSoldModal').classList.remove('hidden');
-};
+}
 
-window.deleteSold = async function(id) {
+async function deleteSold(id) {
     if (!confirm('Delete this sold entry?')) return;
     await apiCall(`/api/sold/${id}`, { method: 'DELETE' });
     showToast('Sold entry deleted');
     loadSold();
     closeAllModals();
-};
+}
 
-window.markAsSold = async function(bikeId) {
+async function markAsSold(bikeId) {
     if (!token) { showToast('Please login as admin', true); return; }
     const bike = bikes.find(b => b._id === bikeId);
     if (!bike) return;
@@ -451,9 +386,10 @@ window.markAsSold = async function(bikeId) {
     loadBikes();
     loadSold();
     closeAllModals();
-};
+}
 
-window.openAddBikeModal = function() {
+// ============= ADD MODAL FUNCTIONS =============
+function openAddBikeModal() {
     document.getElementById('editBikeId').value = '';
     document.getElementById('bikeName').value = '';
     document.getElementById('bikePrice').value = '';
@@ -465,9 +401,9 @@ window.openAddBikeModal = function() {
     document.getElementById('bikeImageUpload').value = '';
     document.getElementById('bikeImagePreview').classList.add('hidden');
     document.getElementById('editBikeModal').classList.remove('hidden');
-};
+}
 
-window.openAddSoldModal = function() {
+function openAddSoldModal() {
     document.getElementById('editSoldId').value = '';
     document.getElementById('soldName').value = '';
     document.getElementById('soldPrice').value = '';
@@ -477,21 +413,7 @@ window.openAddSoldModal = function() {
     document.getElementById('soldImageUpload').value = '';
     document.getElementById('soldImagePreview').classList.add('hidden');
     document.getElementById('editSoldModal').classList.remove('hidden');
-};
-
-// ============= IMAGE PREVIEW =============
-window.showImagePreview = function(imageUrl) {
-    let modal = document.getElementById('imagePreviewModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'imagePreviewModal';
-        modal.className = 'fixed inset-0 z-[500] hidden items-center justify-center modal-overlay p-4';
-        modal.innerHTML = `<div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-4"><div class="flex justify-end"><button onclick="document.getElementById('imagePreviewModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button></div><img id="previewImage" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg"></div>`;
-        document.body.appendChild(modal);
-    }
-    document.getElementById('previewImage').src = imageUrl;
-    modal.classList.remove('hidden');
-};
+}
 
 // ============= SAVE HANDLERS =============
 document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
@@ -539,6 +461,20 @@ document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
     const response = await apiCall(url, { method, body: formData });
     if (response && response.ok) { showToast(id ? 'Sold entry updated!' : 'Sold entry added!'); closeAllModals(); loadSold(); }
 });
+
+// ============= IMAGE PREVIEW =============
+function showImagePreview(imageUrl) {
+    let modal = document.getElementById('imagePreviewModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'imagePreviewModal';
+        modal.className = 'fixed inset-0 z-[500] hidden items-center justify-center modal-overlay p-4';
+        modal.innerHTML = `<div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-4"><div class="flex justify-end"><button onclick="document.getElementById('imagePreviewModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button></div><img id="previewImage" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg"></div>`;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('previewImage').src = imageUrl;
+    modal.classList.remove('hidden');
+}
 
 // ============= AUTHENTICATION =============
 async function checkAuth() {
@@ -663,17 +599,6 @@ document.addEventListener('click', (e) => {
 });
 
 // Logo handlers
-document.getElementById('clickableLogo')?.addEventListener('click', () => {
-    if (token) {
-        document.getElementById('logoPreview').src = document.getElementById('siteLogo').src;
-        document.getElementById('logoUrlInput').value = document.getElementById('siteLogo').src;
-        document.getElementById('editLogoModal').classList.remove('hidden');
-    } else {
-        showToast('Please login as admin', true);
-        document.getElementById('loginModal').classList.remove('hidden');
-    }
-});
-
 document.getElementById('saveLogoBtn')?.addEventListener('click', async () => {
     const logoUrl = document.getElementById('logoUrlInput').value;
     const logoFile = document.getElementById('logoUploadInput').files[0];
@@ -709,6 +634,25 @@ async function loadLogo() {
     }
 }
 
+// Make functions global
+window.editBike = editBike;
+window.deleteBike = deleteBike;
+window.editSold = editSold;
+window.deleteSold = deleteSold;
+window.markAsSold = markAsSold;
+window.openAddBikeModal = openAddBikeModal;
+window.openAddSoldModal = openAddSoldModal;
+window.showBikeDetails = showBikeDetails;
+window.showSoldDetails = showSoldDetails;
+window.submitComment = submitComment;
+window.submitFeedback = submitFeedback;
+window.setRating = setRating;
+window.showImagePreview = showImagePreview;
+
+// Add button click handlers
+document.getElementById('addNewBikeBtn')?.addEventListener('click', openAddBikeModal);
+document.getElementById('addSoldEntryBtn')?.addEventListener('click', openAddSoldModal);
+
 // ============= INITIALIZE =============
 async function init() {
     const savedToken = localStorage.getItem('token');
@@ -718,8 +662,7 @@ async function init() {
     }
     await loadLogo();
     
-    // Load page specific data
-    if (window.location.pathname.includes('bikes.html') || window.location.pathname.includes('/') && !window.location.pathname.includes('sold.html')) {
+    if (window.location.pathname.includes('bikes.html') || window.location.pathname === '/' || window.location.pathname === '') {
         loadBikes();
     }
     if (window.location.pathname.includes('sold.html')) {
