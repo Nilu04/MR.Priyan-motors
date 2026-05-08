@@ -1,10 +1,11 @@
-// app.js - Complete Working Version with ALL Features
+// app.js - Complete Working Version
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
 let currentPage = 'home';
 let bikes = [];
 let soldList = [];
+let socialLinks = { whatsapp_group: '', facebook_page: '' };
 
 // ============= HELPER FUNCTIONS =============
 function showToast(message, isError = false) {
@@ -27,7 +28,7 @@ function escapeHtml(str) {
 }
 
 function closeAllModals() {
-    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal'];
+    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
@@ -108,12 +109,22 @@ const templates = {
     contact: () => `
         <div class="container mx-auto px-4 py-12">
             <div class="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
-                <div><h1 class="text-3xl md:text-5xl font-black mb-6">Visit Our <span class="text-blue-600">Showroom</span></h1>
-                <div class="space-y-6 text-lg"><div class="flex items-start gap-4"><i class="fas fa-map-marker-alt text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Address</p><p class="text-gray-600">Main Street, Kiran, Batticaloa, Sri Lanka</p></div></div>
-                <div class="flex items-start gap-4"><i class="fas fa-phone-alt text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Phone / WhatsApp</p><p class="text-gray-600">075 350 3111</p></div></div>
-                <div class="flex items-start gap-4"><i class="fas fa-clock text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Business Hours</p><p class="text-gray-600">Monday - Sunday: 9:00 AM - 8:00 PM</p></div></div>
-                <div class="flex items-start gap-4"><i class="fas fa-envelope text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Email</p><p class="text-gray-600">info@priyanmotors.lk</p></div></div></div>
-                <div class="mt-8 flex gap-4 flex-wrap"><a href="https://wa.me/94753503111" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-whatsapp mr-2"></i> WhatsApp Us</a><a href="tel:0753503111" class="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fas fa-phone mr-2"></i> Call Now</a></div></div>
+                <div>
+                    <h1 class="text-3xl md:text-5xl font-black mb-6">Visit Our <span class="text-blue-600">Showroom</span></h1>
+                    <div class="space-y-6 text-lg">
+                        <div class="flex items-start gap-4"><i class="fas fa-map-marker-alt text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Address</p><p class="text-gray-600">Main Street, Kiran, Batticaloa, Sri Lanka</p></div></div>
+                        <div class="flex items-start gap-4"><i class="fas fa-phone-alt text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Phone / WhatsApp</p><p class="text-gray-600">075 350 3111</p></div></div>
+                        <div class="flex items-start gap-4"><i class="fas fa-clock text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Business Hours</p><p class="text-gray-600">Monday - Sunday: 9:00 AM - 8:00 PM</p></div></div>
+                        <div class="flex items-start gap-4"><i class="fas fa-envelope text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Email</p><p class="text-gray-600">info@priyanmotors.lk</p></div></div>
+                    </div>
+                    <div class="mt-8 flex gap-4 flex-wrap">
+                        <a href="https://wa.me/94753503111" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-whatsapp mr-2"></i> WhatsApp Us</a>
+                        <a href="${socialLinks.whatsapp_group || 'https://chat.whatsapp.com/yourinvitecode'}" target="_blank" class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-whatsapp mr-2"></i> Join WhatsApp Group</a>
+                        <a href="${socialLinks.facebook_page || 'https://facebook.com/yourpage'}" target="_blank" class="bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-facebook mr-2"></i> Follow on Facebook</a>
+                        <a href="tel:0753503111" class="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fas fa-phone mr-2"></i> Call Now</a>
+                    </div>
+                    ${token ? `<button id="editSocialLinksBtn" class="mt-6 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm transition"><i class="fas fa-edit"></i> Edit Social Links (Admin)</button>` : ''}
+                </div>
                 <div class="bg-gray-200 rounded-2xl h-80 flex flex-col items-center justify-center"><i class="fas fa-map-marked-alt text-4xl text-gray-500 mb-3"></i><p class="text-gray-600 text-center px-4">📍 Main Street, Kiran<br>Batticaloa, Sri Lanka</p><p class="text-xs text-gray-500 mt-2">Google Map location available</p></div>
             </div>
         </div>
@@ -140,6 +151,16 @@ window.navigateTo = function(page) {
     
     if (page === 'bikes') loadBikes();
     if (page === 'sold') loadSold();
+    if (page === 'contact') {
+        loadSocialLinks();
+        // Attach event listener after content loads
+        setTimeout(() => {
+            document.getElementById('editSocialLinksBtn')?.addEventListener('click', () => {
+                document.getElementById('socialLinksModal').classList.remove('hidden');
+                loadSocialLinksToModal();
+            });
+        }, 100);
+    }
     
     window.scrollTo(0, 0);
     const mobileTabs = document.getElementById('mobileTabs');
@@ -160,6 +181,22 @@ async function loadSold() {
     if (response && response.ok) {
         soldList = await response.json();
         renderSold();
+    }
+}
+
+async function loadSocialLinks() {
+    const response = await apiCall('/api/settings/social');
+    if (response && response.ok) {
+        socialLinks = await response.json();
+    }
+}
+
+async function loadSocialLinksToModal() {
+    const response = await apiCall('/api/settings/social');
+    if (response && response.ok) {
+        const links = await response.json();
+        document.getElementById('whatsappGroupLink').value = links.whatsapp_group || '';
+        document.getElementById('facebookPageLink').value = links.facebook_page || '';
     }
 }
 
@@ -220,6 +257,8 @@ window.deleteBike = async (id) => {
     if (response && response.ok) {
         showToast('Bike deleted successfully');
         loadBikes();
+    } else {
+        showToast('Failed to delete bike', true);
     }
 };
 
@@ -243,6 +282,8 @@ window.deleteSold = async (id) => {
     if (response && response.ok) {
         showToast('Sold entry removed successfully');
         loadSold();
+    } else {
+        showToast('Failed to delete sold entry', true);
     }
 };
 
@@ -359,6 +400,24 @@ document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
     }
 });
 
+document.getElementById('saveSocialLinksBtn')?.addEventListener('click', async () => {
+    const whatsapp_group = document.getElementById('whatsappGroupLink').value;
+    const facebook_page = document.getElementById('facebookPageLink').value;
+    
+    const response = await apiCall('/api/settings/social', {
+        method: 'POST',
+        body: JSON.stringify({ whatsapp_group, facebook_page })
+    });
+    if (response && response.ok) {
+        showToast('Social links updated successfully!');
+        closeAllModals();
+        loadSocialLinks();
+        if (currentPage === 'contact') {
+            window.navigateTo('contact');
+        }
+    }
+});
+
 // ============= SETTINGS & AUTHENTICATION =============
 document.getElementById('settingsMenuItem')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -438,7 +497,6 @@ document.getElementById('saveUsernameBtn')?.addEventListener('click', async () =
         closeAllModals();
         document.getElementById('newUsername').value = '';
         document.getElementById('usernameError').innerText = '';
-        // Refresh user display
         if (currentUser) currentUser.username = newUsername;
         document.getElementById('dropdownUserName').innerHTML = `${newUsername} (Admin)`;
     } else {
@@ -476,7 +534,6 @@ async function login(username, password) {
         currentUser = data.user;
         localStorage.setItem('token', token);
         
-        // Get full user info
         const userResponse = await apiCall('/api/me');
         if (userResponse && userResponse.ok) {
             currentUser = await userResponse.json();
@@ -559,6 +616,7 @@ document.getElementById('closeLoginModalBtn')?.addEventListener('click', closeAl
 document.getElementById('closeSettingsModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closePasswordModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeUsernameModalBtn')?.addEventListener('click', closeAllModals);
+document.getElementById('closeSocialLinksModalBtn')?.addEventListener('click', closeAllModals);
 
 // Image preview
 document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
@@ -660,6 +718,7 @@ async function init() {
         document.getElementById('siteLogo').src = data.logoUrl;
     }
     
+    await loadSocialLinks();
     window.navigateTo('home');
 }
 
