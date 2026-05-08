@@ -498,6 +498,88 @@ app.get('/script.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'script.js'));
 });
 
+
+// server.js - Backend with Social Links & Admin User Creation
+// Add these new endpoints to your existing server.js
+
+// ... (keep all your existing imports and schemas)
+
+// ============= ADMIN ROUTES =============
+// Create a new admin user (Admin only)
+app.post('/api/admin/users', authenticateToken, async (req, res) => {
+  try {
+    // Check if the requester is the master admin
+    if (req.user.username !== 'admin') {
+      return res.status(403).json({ error: 'Only master admin can create new users' });
+    }
+
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const newUser = new User({ username, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: 'User created successfully', user: { username: newUser.username } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= SOCIAL LINKS ROUTES =============
+// Get social links (public)
+app.get('/api/social-links', async (req, res) => {
+  try {
+    const whatsappGroup = await Setting.findOne({ key: 'whatsapp_group' });
+    const facebookPage = await Setting.findOne({ key: 'facebook_page' });
+    res.json({
+      whatsapp_group: whatsappGroup ? whatsappGroup.value : '',
+      facebook_page: facebookPage ? facebookPage.value : ''
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update social links (Admin only)
+app.put('/api/admin/social-links', authenticateToken, async (req, res) => {
+  try {
+    // Optional: Check if user is admin
+    // if (req.user.username !== 'admin') { ... }
+
+    const { whatsapp_group, facebook_page } = req.body;
+    
+    if (whatsapp_group !== undefined) {
+      await Setting.findOneAndUpdate(
+        { key: 'whatsapp_group' },
+        { key: 'whatsapp_group', value: whatsapp_group },
+        { upsert: true, new: true }
+      );
+    }
+    if (facebook_page !== undefined) {
+      await Setting.findOneAndUpdate(
+        { key: 'facebook_page' },
+        { key: 'facebook_page', value: facebook_page },
+        { upsert: true, new: true }
+      );
+    }
+    
+    res.json({ message: 'Social links updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ... (rest of your existing routes)
+
+
 // ============= START SERVER =============
 initializeData().then(() => {
   app.listen(PORT, () => {
@@ -513,3 +595,5 @@ initializeData().then(() => {
     console.log(`🚀 Server running on port ${PORT} (with warnings)`);
   });
 });
+
+
