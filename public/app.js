@@ -1,4 +1,4 @@
-// app.js - Complete with Working Click for Details
+// app.js - Complete with All New Features
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -6,6 +6,49 @@ let currentPage = 'home';
 let bikes = [];
 let soldList = [];
 let socialLinks = { whatsapp_group: '', facebook_page: '' };
+let comments = {};
+
+// Load comments from localStorage
+function loadComments() {
+    const saved = localStorage.getItem('bikeComments');
+    if (saved) {
+        comments = JSON.parse(saved);
+    }
+}
+
+function saveComments() {
+    localStorage.setItem('bikeComments', JSON.stringify(comments));
+}
+
+function addComment(bikeId, commentText, userName) {
+    if (!commentText.trim()) return;
+    if (!comments[bikeId]) comments[bikeId] = [];
+    comments[bikeId].push({
+        id: Date.now(),
+        text: commentText,
+        user: userName || 'Guest',
+        date: new Date().toLocaleString(),
+        replies: []
+    });
+    saveComments();
+    showBikeDetails(bikeId); // Refresh modal
+}
+
+function addReply(bikeId, commentId, replyText, userName) {
+    if (!replyText.trim()) return;
+    const comment = comments[bikeId]?.find(c => c.id === commentId);
+    if (comment) {
+        if (!comment.replies) comment.replies = [];
+        comment.replies.push({
+            id: Date.now(),
+            text: replyText,
+            user: userName || 'Guest',
+            date: new Date().toLocaleString()
+        });
+        saveComments();
+        showBikeDetails(bikeId);
+    }
+}
 
 // ============= HELPER FUNCTIONS =============
 function showToast(message, isError = false) {
@@ -28,7 +71,7 @@ function escapeHtml(str) {
 }
 
 function closeAllModals() {
-    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal', 'bikeDetailsModal', 'soldDetailsModal'];
+    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal', 'bikeDetailsModal', 'soldDetailsModal', 'imagePreviewModal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
@@ -62,18 +105,120 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
-// ============= DETAILS MODAL FUNCTIONS (FIXED) =============
+// ============= IMAGE PREVIEW FUNCTION =============
+function showImagePreview(imageUrl) {
+    let modal = document.getElementById('imagePreviewModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'imagePreviewModal';
+        modal.className = 'fixed inset-0 z-[500] hidden items-center justify-center modal-overlay p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-4">
+                <div class="flex justify-end mb-2">
+                    <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                </div>
+                <img id="previewImage" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg">
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('previewImage').src = imageUrl;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+// ============= MARK AS SOLD FUNCTION =============
+async function markAsSold(bikeId) {
+    if (!token) {
+        showToast('Please login as admin to mark as sold', true);
+        document.getElementById('loginModal').classList.remove('hidden');
+        return;
+    }
+    
+    const bike = bikes.find(b => b._id === bikeId);
+    if (!bike) return;
+    
+    const buyerName = prompt('Enter buyer name:', '');
+    if (!buyerName) return;
+    
+    const soldPrice = prompt('Enter sold price (Rs.):', bike.price.replace('Rs.', '').trim());
+    if (!soldPrice) return;
+    
+    const monthYear = prompt('Enter month/year (e.g., May 2025):', new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
+    if (!monthYear) return;
+    
+    const soldData = {
+        name: bike.name,
+        sold_price: `Rs. ${parseInt(soldPrice.replace(/[^0-9]/g, '')).toLocaleString()}`,
+        sold_price_num: parseInt(soldPrice.replace(/[^0-9]/g, '')) || 0,
+        month_year: monthYear,
+        buyer: buyerName,
+        image: bike.image
+    };
+    
+    const response = await apiCall('/api/sold', {
+        method: 'POST',
+        body: JSON.stringify(soldData)
+    });
+    
+    if (response && response.ok) {
+        // Delete the bike from available bikes
+        await apiCall(`/api/bikes/${bikeId}`, { method: 'DELETE' });
+        showToast('Bike marked as sold and moved to sold page!');
+        loadBikes();
+        loadSold();
+        closeAllModals();
+    } else {
+        showToast('Failed to mark as sold', true);
+    }
+}
+
+// ============= DETAILS MODAL FUNCTIONS =============
 window.showBikeDetails = function(bikeId) {
     const bike = bikes.find(b => b._id === bikeId);
     if (!bike) return;
     
+    const bikeComments = comments[bikeId] || [];
+    
+    const commentsHtml = bikeComments.map(comment => `
+        <div class="bg-gray-50 rounded-lg p-3 mb-3">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="font-semibold text-blue-600">${escapeHtml(comment.user)}</span>
+                    <span class="text-xs text-gray-400 ml-2">${comment.date}</span>
+                </div>
+                <button onclick="showReplyForm('${bikeId}', ${comment.id})" class="text-xs text-blue-500 hover:text-blue-700">Reply</button>
+            </div>
+            <p class="text-gray-700 mt-1">${escapeHtml(comment.text)}</p>
+            <div id="replies-${comment.id}" class="ml-4 mt-2">
+                ${(comment.replies || []).map(reply => `
+                    <div class="bg-gray-100 rounded-lg p-2 mb-2">
+                        <div><span class="font-semibold text-green-600">${escapeHtml(reply.user)}</span> <span class="text-xs text-gray-400">${reply.date}</span></div>
+                        <p class="text-gray-700 text-sm">${escapeHtml(reply.text)}</p>
+                    </div>
+                `).join('')}
+            </div>
+            <div id="reply-form-${comment.id}" class="hidden mt-2">
+                <div class="flex gap-2">
+                    <input type="text" id="reply-input-${comment.id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
+                    <button onclick="submitReply('${bikeId}', ${comment.id})" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
     const modalHtml = `
-        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
+        <div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-start mb-4">
                 <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
                 <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
-            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+            <div class="relative">
+                <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+                <button onclick="showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
+                    <i class="fas fa-search-plus"></i>
+                </button>
+            </div>
             <div class="grid grid-cols-2 gap-4">
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold text-blue-600">${bike.price}</p></div>
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
@@ -82,13 +227,28 @@ window.showBikeDetails = function(bikeId) {
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Added On</p><p class="text-lg font-semibold">${new Date(bike.created_at).toLocaleDateString()}</p></div>
             </div>
-            <div class="mt-6 flex gap-3">
+            
+            <!-- Comments Section -->
+            <div class="mt-6 border-t pt-4">
+                <h3 class="text-lg font-bold mb-3">💬 Comments & Questions</h3>
+                <div class="mb-4">
+                    <div class="flex gap-2">
+                        <input type="text" id="comment-input-${bikeId}" placeholder="Write a comment or ask a question..." class="flex-1 border rounded-lg px-4 py-2">
+                        <button onclick="submitComment('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Post</button>
+                    </div>
+                </div>
+                <div id="comments-list-${bikeId}" class="max-h-60 overflow-y-auto">
+                    ${commentsHtml || '<p class="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>'}
+                </div>
+            </div>
+            
+            <div class="mt-6 flex gap-3 flex-wrap">
+                <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" target="_blank" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition"><i class="fab fa-whatsapp"></i> Inquire Now on WhatsApp</a>
                 ${token ? `
                     <button onclick="window.editBike('${bike._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
                     <button onclick="window.deleteBike('${bike._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
-                ` : `
-                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition"><i class="fab fa-whatsapp"></i> Inquire Now</a>
-                `}
+                ` : ''}
+                <button onclick="markAsSold('${bike._id}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"><i class="fas fa-tag"></i> Mark as Sold</button>
                 <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
             </div>
         </div>
@@ -104,6 +264,35 @@ window.showBikeDetails = function(bikeId) {
     modal.innerHTML = modalHtml;
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
+    
+    // Store bikeId for comments
+    window.currentBikeId = bikeId;
+};
+
+window.submitComment = function(bikeId) {
+    const input = document.getElementById(`comment-input-${bikeId}`);
+    const commentText = input.value;
+    if (!commentText.trim()) return;
+    
+    const userName = token && currentUser ? currentUser.username : 'Guest';
+    addComment(bikeId, commentText, userName);
+    input.value = '';
+};
+
+window.showReplyForm = function(bikeId, commentId) {
+    const form = document.getElementById(`reply-form-${commentId}`);
+    if (form) form.classList.toggle('hidden');
+};
+
+window.submitReply = function(bikeId, commentId) {
+    const input = document.getElementById(`reply-input-${commentId}`);
+    const replyText = input.value;
+    if (!replyText.trim()) return;
+    
+    const userName = token && currentUser ? currentUser.username : 'Guest';
+    addReply(bikeId, commentId, replyText, userName);
+    input.value = '';
+    document.getElementById(`reply-form-${commentId}`).classList.add('hidden');
 };
 
 window.showSoldDetails = function(soldId) {
@@ -116,7 +305,14 @@ window.showSoldDetails = function(soldId) {
                 <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
                 <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
-            ${sold.image ? `<img src="${sold.image}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.style.display='none'">` : ''}
+            ${sold.image ? `
+                <div class="relative">
+                    <img src="${sold.image}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="showImagePreview('${sold.image}')" onerror="this.style.display='none'">
+                    <button onclick="showImagePreview('${sold.image}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                </div>
+            ` : ''}
             <div class="grid grid-cols-2 gap-4">
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Sold Price</p><p class="text-xl font-bold text-green-600">${sold.sold_price}</p></div>
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">👤 Buyer Name</p><p class="text-lg font-semibold">${escapeHtml(sold.buyer)}</p></div>
@@ -153,7 +349,7 @@ const templates = {
                 <span class="inline-block bg-blue-600/80 px-4 py-1 rounded-full text-sm font-bold mb-4">#RideTheExtraordinary</span>
                 <h1 class="text-4xl md:text-7xl font-black mb-4">Own Your <span class="text-blue-400">Dream Machine</span></h1>
                 <p class="text-base md:text-2xl text-gray-200 max-w-3xl mx-auto mb-6">Premium new & used motorcycles | Main Street, Kiran, Batticaloa</p>
-                <div class="flex justify-center gap-4"><button onclick="window.navigateTo('bikes')" class="bg-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Explore Bikes</button><button onclick="window.navigateTo('exchange')" class="bg-transparent border-2 border-white px-6 py-3 rounded-xl font-bold hover:bg-green-600 transition">Sell Your Bike</button></div>
+                <div class="flex justify-center gap-4 flex-wrap"><button onclick="window.navigateTo('bikes')" class="bg-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Explore Bikes</button><button onclick="window.navigateTo('exchange')" class="bg-transparent border-2 border-white px-6 py-3 rounded-xl font-bold hover:bg-green-600 transition">Sell Your Bike</button></div>
                 <div class="grid grid-cols-3 gap-4 mt-10 max-w-3xl mx-auto"><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">500+</div><div class="text-xs">Bikes Sold</div></div><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">100%</div><div class="text-xs">Trust</div></div><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">24/7</div><div class="text-xs">Support</div></div></div>
             </div>
         </header>
@@ -162,7 +358,7 @@ const templates = {
     
     bikes: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details</p></div>${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details, comment, or inquire</p></div>${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
             <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price Low-High</button></div>
             <div id="bikesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
@@ -304,7 +500,11 @@ function renderBikes() {
                     <span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span>
                     <span><i class="fas fa-tag"></i> ${bike.brand}</span>
                 </div>
-                <div class="mt-3 text-xs text-gray-400">🔍 Click for details →</div>
+                <div class="mt-3 flex gap-2">
+                    <span class="text-xs text-gray-400">🔍 Click for details</span>
+                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" target="_blank" class="text-xs text-green-600 hover:text-green-800"><i class="fab fa-whatsapp"></i> Inquire</a>
+                    ${token ? `<button onclick="event.stopPropagation(); markAsSold('${bike._id}')" class="text-xs text-purple-600 hover:text-purple-800"><i class="fas fa-tag"></i> Mark Sold</button>` : ''}
+                </div>
             </div>
         </div>
     `).join('');
@@ -323,8 +523,8 @@ function renderSold() {
                 <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
                 <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
                 <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-                ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onerror="this.style.display='none'"></div>` : ''}
-                <div class="mt-2 text-xs text-gray-400">🔍 Click for details →</div>
+                ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
+                <div class="mt-2 text-xs text-gray-400">🔍 Click for details</div>
             </div>
         </div>
     `).join('');
@@ -823,6 +1023,8 @@ async function loadLogo() {
 // ============= INITIALIZE =============
 async function init() {
     console.log('🚀 Starting app...');
+    
+    loadComments();
     
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
