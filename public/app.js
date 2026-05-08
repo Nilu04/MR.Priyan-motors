@@ -1,4 +1,4 @@
-// app.js - Complete with Working Close Buttons and Admin Features
+// app.js - Complete Working Version with All Features
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -9,7 +9,7 @@ let socialLinks = { whatsapp_group: '', facebook_page: '' };
 let comments = {};
 let feedbacks = {};
 
-// Load comments and feedbacks from localStorage
+// Load comments and feedbacks from localStorage (visible to all customers)
 function loadComments() {
     const saved = localStorage.getItem('bikeComments');
     if (saved) {
@@ -119,6 +119,11 @@ function closeAllModals() {
     });
 }
 
+// Close modal function for HTML buttons
+window.closeModal = function() {
+    closeAllModals();
+};
+
 // ============= API CALLS =============
 async function apiCall(endpoint, options = {}) {
     const headers = { ...options.headers };
@@ -147,7 +152,7 @@ async function apiCall(endpoint, options = {}) {
 }
 
 // ============= IMAGE PREVIEW FUNCTION =============
-function showImagePreview(imageUrl) {
+window.showImagePreview = function(imageUrl) {
     let modal = document.getElementById('imagePreviewModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -156,7 +161,7 @@ function showImagePreview(imageUrl) {
         modal.innerHTML = `
             <div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-4">
                 <div class="flex justify-end mb-2">
-                    <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    <button onclick="window.closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
                 </div>
                 <img id="previewImage" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg">
             </div>
@@ -166,10 +171,10 @@ function showImagePreview(imageUrl) {
     document.getElementById('previewImage').src = imageUrl;
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
-}
+};
 
 // ============= MARK AS SOLD FUNCTION =============
-async function markAsSold(bikeId) {
+window.markAsSold = async function(bikeId) {
     if (!token) {
         showToast('Please login as admin to mark as sold', true);
         document.getElementById('loginModal').classList.remove('hidden');
@@ -211,11 +216,6 @@ async function markAsSold(bikeId) {
     } else {
         showToast('Failed to mark as sold', true);
     }
-}
-
-// ============= GLOBAL CLOSE MODAL FUNCTION FOR HTML BUTTONS =============
-window.closeModal = function() {
-    closeAllModals();
 };
 
 // ============= DETAILS MODAL FUNCTIONS =============
@@ -262,8 +262,8 @@ window.showBikeDetails = function(bikeId) {
                 <button onclick="window.closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
             <div class="relative">
-                <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
-                <button onclick="showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
+                <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="window.showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+                <button onclick="window.showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
                     <i class="fas fa-search-plus"></i>
                 </button>
             </div>
@@ -276,7 +276,7 @@ window.showBikeDetails = function(bikeId) {
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Added On</p><p class="text-lg font-semibold">${new Date(bike.created_at).toLocaleDateString()}</p></div>
             </div>
             
-            <!-- Comments Section -->
+            <!-- Comments Section - Visible to all customers -->
             <div class="mt-6 border-t pt-4">
                 <h3 class="text-lg font-bold mb-3">💬 Comments & Questions</h3>
                 <div class="mb-4">
@@ -296,7 +296,7 @@ window.showBikeDetails = function(bikeId) {
                     <button onclick="window.editBike('${bike._id}'); window.closeModal();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
                     <button onclick="window.deleteBike('${bike._id}'); window.closeModal();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
                 ` : ''}
-                <button onclick="markAsSold('${bike._id}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"><i class="fas fa-tag"></i> Mark as Sold</button>
+                <button onclick="window.markAsSold('${bike._id}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"><i class="fas fa-tag"></i> Mark as Sold</button>
                 <button onclick="window.closeModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
             </div>
         </div>
@@ -319,7 +319,7 @@ window.submitComment = function(bikeId) {
     const commentText = input.value;
     if (!commentText.trim()) return;
     
-    const userName = token && currentUser ? currentUser.username : 'Guest';
+    const userName = token && currentUser ? currentUser.username : 'Customer';
     addComment(bikeId, commentText, userName);
     input.value = '';
 };
@@ -342,7 +342,7 @@ window.submitReply = function(bikeId, commentId) {
 
 window.deleteComment = deleteComment;
 
-// ============= SOLD DETAILS WITH FEEDBACK =============
+// ============= SOLD DETAILS WITH FEEDBACK (Visible to all customers) =============
 window.showSoldDetails = function(soldId) {
     const sold = soldList.find(s => s._id === soldId);
     if (!sold) return;
@@ -370,8 +370,8 @@ window.showSoldDetails = function(soldId) {
             </div>
             ${sold.image ? `
                 <div class="relative">
-                    <img src="${sold.image}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="showImagePreview('${sold.image}')" onerror="this.style.display='none'">
-                    <button onclick="showImagePreview('${sold.image}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
+                    <img src="${sold.image}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="window.showImagePreview('${sold.image}')" onerror="this.style.display='none'">
+                    <button onclick="window.showImagePreview('${sold.image}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
                         <i class="fas fa-search-plus"></i>
                     </button>
                 </div>
@@ -383,7 +383,7 @@ window.showSoldDetails = function(soldId) {
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Recorded On</p><p class="text-lg font-semibold">${new Date(sold.created_at).toLocaleDateString()}</p></div>
             </div>
             
-            <!-- Customer Feedback Section -->
+            <!-- Customer Feedback Section - Visible to all customers -->
             <div class="mt-6 border-t pt-4">
                 <h3 class="text-lg font-bold mb-3">⭐ Customer Feedback</h3>
                 <div class="mb-4">
@@ -467,7 +467,7 @@ window.submitFeedback = function(soldId) {
     }
 };
 
-// ============= PAGE TEMPLATES (same as before) =============
+// ============= PAGE TEMPLATES =============
 const templates = {
     home: () => `
         <header class="hero-gradient min-h-[75vh] flex items-center justify-center text-center text-white">
@@ -484,7 +484,7 @@ const templates = {
     
     bikes: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details, comment, or inquire</p></div>${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details, comment, or inquire</p></div>${token ? `<button id="addNewBikeBtn" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
             <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price Low-High</button></div>
             <div id="bikesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
@@ -492,7 +492,7 @@ const templates = {
     
     sold: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Click on any sold bike to view details and leave feedback</p></div>${token ? `<button onclick="window.openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Click on any sold bike to view details and leave feedback</p></div>${token ? `<button id="addSoldEntryBtn" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
             <div id="soldGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     `,
@@ -554,8 +554,26 @@ window.navigateTo = function(page) {
         pageContent.innerHTML = templates[page]();
     }
     
-    if (page === 'bikes') loadBikes();
-    if (page === 'sold') loadSold();
+    if (page === 'bikes') {
+        loadBikes();
+        // Attach add bike button event after content loads
+        setTimeout(() => {
+            const addBtn = document.getElementById('addNewBikeBtn');
+            if (addBtn) {
+                addBtn.onclick = function() { window.openAddBikeModal(); };
+            }
+        }, 100);
+    }
+    if (page === 'sold') {
+        loadSold();
+        // Attach add sold button event after content loads
+        setTimeout(() => {
+            const addBtn = document.getElementById('addSoldEntryBtn');
+            if (addBtn) {
+                addBtn.onclick = function() { window.openAddSoldModal(); };
+            }
+        }, 100);
+    }
     if (page === 'contact') {
         loadSocialLinks();
         setTimeout(() => {
@@ -629,7 +647,7 @@ function renderBikes() {
                 <div class="mt-3 flex gap-2">
                     <span class="text-xs text-gray-400">🔍 Click for details</span>
                     <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" target="_blank" class="text-xs text-green-600 hover:text-green-800" onclick="event.stopPropagation()"><i class="fab fa-whatsapp"></i> Inquire</a>
-                    ${token ? `<button onclick="event.stopPropagation(); markAsSold('${bike._id}')" class="text-xs text-purple-600 hover:text-purple-800"><i class="fas fa-tag"></i> Mark Sold</button>` : ''}
+                    ${token ? `<button onclick="event.stopPropagation(); window.markAsSold('${bike._id}')" class="text-xs text-purple-600 hover:text-purple-800"><i class="fas fa-tag"></i> Mark Sold</button>` : ''}
                 </div>
             </div>
         </div>
@@ -649,7 +667,7 @@ function renderSold() {
                 <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
                 <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
                 <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-                ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
+                ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); window.showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
                 <div class="mt-2 text-xs text-gray-400">🔍 Click for details | ⭐ Leave feedback</div>
             </div>
         </div>
@@ -1040,7 +1058,7 @@ document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
     });
 });
 
-// Close modal buttons - FIXED
+// Close modal buttons
 document.getElementById('closeModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeSoldModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeLogoModalBtn')?.addEventListener('click', closeAllModals);
