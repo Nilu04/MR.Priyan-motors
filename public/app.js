@@ -1,4 +1,4 @@
-// app.js - Complete Working Version
+// app.js - Complete Working Version with Profile Picture and Sold Photos
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -154,10 +154,13 @@ window.navigateTo = function(page) {
     if (page === 'contact') {
         loadSocialLinks();
         setTimeout(() => {
-            document.getElementById('editSocialLinksBtn')?.addEventListener('click', () => {
-                document.getElementById('socialLinksModal').classList.remove('hidden');
-                loadSocialLinksToModal();
-            });
+            const editBtn = document.getElementById('editSocialLinksBtn');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    document.getElementById('socialLinksModal').classList.remove('hidden');
+                    loadSocialLinksToModal();
+                });
+            }
         }, 100);
     }
     
@@ -228,8 +231,8 @@ function renderSold() {
         <div class="bg-white rounded-2xl overflow-hidden shadow-md sold-card border-l-8 border-green-500 hover:shadow-lg transition p-4">
             <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3><p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
             <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-            ${token ? `<div class="flex gap-3 mt-4"><button onclick="window.editSold('${s._id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="window.deleteSold('${s._id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
             ${s.image ? `<div class="mt-3"><img src="${s.image}" class="w-32 h-24 object-cover rounded-lg" onerror="this.style.display='none'"></div>` : ''}
+            ${token ? `<div class="flex gap-3 mt-4"><button onclick="window.editSold('${s._id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="window.deleteSold('${s._id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
         </div>
     `).join('');
 }
@@ -247,9 +250,12 @@ window.editBike = (id) => {
         document.getElementById('bikeLocation').value = bike.location;
         document.getElementById('bikeBrand').value = bike.brand;
         document.getElementById('bikeImageUrl').value = bike.image || '';
+        const bikePreview = document.getElementById('bikeImagePreview');
         if (bike.image) {
-            document.getElementById('bikeImagePreview').src = bike.image;
-            document.getElementById('bikeImagePreview').classList.remove('hidden');
+            bikePreview.src = bike.image;
+            bikePreview.classList.remove('hidden');
+        } else {
+            bikePreview.classList.add('hidden');
         }
         document.getElementById('editBikeModal').classList.remove('hidden');
     }
@@ -276,9 +282,12 @@ window.editSold = (id) => {
         document.getElementById('soldMonthYear').value = sold.month_year;
         document.getElementById('soldBuyer').value = sold.buyer;
         document.getElementById('soldImageUrl').value = sold.image || '';
+        const soldPreview = document.getElementById('soldImagePreview');
         if (sold.image) {
-            document.getElementById('soldImagePreview').src = sold.image;
-            document.getElementById('soldImagePreview').classList.remove('hidden');
+            soldPreview.src = sold.image;
+            soldPreview.classList.remove('hidden');
+        } else {
+            soldPreview.classList.add('hidden');
         }
         document.getElementById('editSoldModal').classList.remove('hidden');
     }
@@ -362,10 +371,12 @@ document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
         showToast(id ? 'Bike updated successfully!' : 'Bike added successfully!');
         closeAllModals();
         loadBikes();
+    } else if (response) {
+        const error = await response.json();
+        showToast(error.error || 'Failed to save bike', true);
     }
 });
 
-// SOLD SAVE HANDLER WITH IMAGE
 document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
     const id = document.getElementById('editSoldId').value;
     const name = document.getElementById('soldName').value;
@@ -425,6 +436,27 @@ document.getElementById('saveSocialLinksBtn')?.addEventListener('click', async (
 });
 
 // ============= PROFILE PICTURE FUNCTIONS =============
+// Create profile modal dynamically if not exists
+if (!document.getElementById('profileModal')) {
+    const profileModal = document.createElement('div');
+    profileModal.id = 'profileModal';
+    profileModal.className = 'fixed inset-0 z-[200] hidden items-center justify-center modal-overlay p-4';
+    profileModal.innerHTML = `
+        <div class="bg-white rounded-2xl w-full max-w-md p-6">
+            <h3 class="text-xl font-bold mb-4">My Profile</h3>
+            <div class="text-center mb-4">
+                <img id="profilePreview" src="" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-blue-200">
+                <button id="uploadProfilePicBtn" class="mt-2 text-sm text-blue-600">Change Profile Picture</button>
+                <input type="file" id="profilePicInput" accept="image/*" class="hidden">
+            </div>
+            <p><strong>Username:</strong> <span id="profileUsername"></span></p>
+            <p><strong>Role:</strong> <span id="profileRole"></span></p>
+            <button id="closeProfileModalBtn" class="w-full mt-4 bg-gray-300 py-2 rounded-lg">Close</button>
+        </div>
+    `;
+    document.body.appendChild(profileModal);
+}
+
 document.getElementById('uploadProfilePicBtn')?.addEventListener('click', () => {
     document.getElementById('profilePicInput').click();
 });
@@ -451,10 +483,8 @@ document.getElementById('profilePicInput')?.addEventListener('change', async (e)
         }
         
         // Update profile picture in UI
-        const profilePicElements = document.querySelectorAll('#profilePreview, #navProfilePic, #dropdownProfilePic');
-        profilePicElements.forEach(el => {
-            if (el) el.src = data.imageUrl;
-        });
+        const profilePreview = document.getElementById('profilePreview');
+        if (profilePreview) profilePreview.src = data.imageUrl;
         
         showToast('Profile picture updated successfully!');
         closeAllModals();
@@ -463,26 +493,7 @@ document.getElementById('profilePicInput')?.addEventListener('change', async (e)
     }
 });
 
-// PROFILE MENU ITEM
-document.getElementById('profileMenuItem')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    if (token && currentUser) {
-        const response = await apiCall('/api/me');
-        if (response && response.ok) {
-            currentUser = await response.json();
-        }
-        document.getElementById('profileUsername').innerText = currentUser?.username || 'Admin';
-        document.getElementById('profileRole').innerText = 'Administrator';
-        document.getElementById('profilePreview').src = currentUser?.profile_picture || '';
-    } else {
-        document.getElementById('profileUsername').innerText = 'Guest';
-        document.getElementById('profileRole').innerText = 'Guest User';
-        document.getElementById('profilePreview').src = '';
-    }
-    document.getElementById('profileModal').classList.remove('hidden');
-});
-
-// Add profile menu to dropdown
+// Add Profile Menu Item to Dropdown
 const accountDropdown = document.getElementById('accountDropdown');
 if (accountDropdown) {
     const profileMenuItem = document.createElement('a');
@@ -492,17 +503,17 @@ if (accountDropdown) {
     profileMenuItem.innerHTML = '<i class="fas fa-id-card w-5"></i> Profile';
     profileMenuItem.addEventListener('click', (e) => {
         e.preventDefault();
-        window.showProfileModal();
+        showProfileModal();
     });
     
-    // Insert after first div
+    // Insert after the first div
     const firstDiv = accountDropdown.querySelector('div');
     if (firstDiv) {
         firstDiv.insertAdjacentElement('afterend', profileMenuItem);
     }
 }
 
-window.showProfileModal = async () => {
+async function showProfileModal() {
     if (token && currentUser) {
         const response = await apiCall('/api/me');
         if (response && response.ok) {
@@ -510,13 +521,16 @@ window.showProfileModal = async () => {
         }
         document.getElementById('profileUsername').innerText = currentUser?.username || 'Admin';
         document.getElementById('profileRole').innerText = 'Administrator';
-        document.getElementById('profilePreview').src = currentUser?.profile_picture || '';
+        const profilePreview = document.getElementById('profilePreview');
+        if (profilePreview) profilePreview.src = currentUser?.profile_picture || '';
     } else {
         document.getElementById('profileUsername').innerText = 'Guest';
         document.getElementById('profileRole').innerText = 'Guest User';
+        const profilePreview = document.getElementById('profilePreview');
+        if (profilePreview) profilePreview.src = '';
     }
     document.getElementById('profileModal').classList.remove('hidden');
-};
+}
 
 // ============= SETTINGS & AUTHENTICATION =============
 document.getElementById('settingsMenuItem')?.addEventListener('click', (e) => {
