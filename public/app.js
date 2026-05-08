@@ -1,4 +1,4 @@
-// app.js - Complete with Fixed Close Buttons, Comments Persistence, Feedback System
+// app.js - Complete with Working Close Buttons and Admin Features
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -63,10 +63,16 @@ function addReply(bikeId, commentId, replyText, userName) {
 }
 
 function deleteComment(bikeId, commentId) {
-    if (!token) return;
-    comments[bikeId] = comments[bikeId].filter(c => c.id !== commentId);
-    saveComments();
-    showBikeDetails(bikeId);
+    if (!token) {
+        showToast('Please login as admin to delete comments', true);
+        return;
+    }
+    if (confirm('Are you sure you want to delete this comment?')) {
+        comments[bikeId] = comments[bikeId].filter(c => c.id !== commentId);
+        saveComments();
+        showBikeDetails(bikeId);
+        showToast('Comment deleted successfully');
+    }
 }
 
 function addFeedback(soldId, rating, comment, userName) {
@@ -207,6 +213,11 @@ async function markAsSold(bikeId) {
     }
 }
 
+// ============= GLOBAL CLOSE MODAL FUNCTION FOR HTML BUTTONS =============
+window.closeModal = function() {
+    closeAllModals();
+};
+
 // ============= DETAILS MODAL FUNCTIONS =============
 window.showBikeDetails = function(bikeId) {
     const bike = bikes.find(b => b._id === bikeId);
@@ -222,8 +233,8 @@ window.showBikeDetails = function(bikeId) {
                     <span class="text-xs text-gray-400 ml-2">${comment.date}</span>
                 </div>
                 <div>
-                    <button onclick="showReplyForm('${bikeId}', ${comment.id})" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
-                    ${token ? `<button onclick="deleteComment('${bikeId}', ${comment.id})" class="text-xs text-red-500 hover:text-red-700">Delete</button>` : ''}
+                    <button onclick="window.showReplyForm('${bikeId}', ${comment.id})" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
+                    ${token ? `<button onclick="window.deleteComment('${bikeId}', ${comment.id})" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash"></i> Delete</button>` : ''}
                 </div>
             </div>
             <p class="text-gray-700 mt-1">${escapeHtml(comment.text)}</p>
@@ -238,7 +249,7 @@ window.showBikeDetails = function(bikeId) {
             <div id="reply-form-${comment.id}" class="hidden mt-2">
                 <div class="flex gap-2">
                     <input type="text" id="reply-input-${comment.id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
-                    <button onclick="submitReply('${bikeId}', ${comment.id})" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
+                    <button onclick="window.submitReply('${bikeId}', ${comment.id})" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
                 </div>
             </div>
         </div>
@@ -248,7 +259,7 @@ window.showBikeDetails = function(bikeId) {
         <div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-start mb-4">
                 <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
-                <button onclick="closeAllModals()" class="close-modal-btn text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                <button onclick="window.closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
             <div class="relative">
                 <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
@@ -271,7 +282,7 @@ window.showBikeDetails = function(bikeId) {
                 <div class="mb-4">
                     <div class="flex gap-2">
                         <input type="text" id="comment-input-${bikeId}" placeholder="Write a comment or ask a question..." class="flex-1 border rounded-lg px-4 py-2">
-                        <button onclick="submitComment('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Post</button>
+                        <button onclick="window.submitComment('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Post</button>
                     </div>
                 </div>
                 <div id="comments-list-${bikeId}" class="max-h-60 overflow-y-auto">
@@ -282,11 +293,11 @@ window.showBikeDetails = function(bikeId) {
             <div class="mt-6 flex gap-3 flex-wrap">
                 <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" target="_blank" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition"><i class="fab fa-whatsapp"></i> Inquire Now on WhatsApp</a>
                 ${token ? `
-                    <button onclick="window.editBike('${bike._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
-                    <button onclick="window.deleteBike('${bike._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
+                    <button onclick="window.editBike('${bike._id}'); window.closeModal();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
+                    <button onclick="window.deleteBike('${bike._id}'); window.closeModal();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
                 ` : ''}
                 <button onclick="markAsSold('${bike._id}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"><i class="fas fa-tag"></i> Mark as Sold</button>
-                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
+                <button onclick="window.closeModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
             </div>
         </div>
     `;
@@ -301,11 +312,6 @@ window.showBikeDetails = function(bikeId) {
     modal.innerHTML = modalHtml;
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
-    
-    // Attach close event to all close buttons
-    modal.querySelectorAll('.close-modal-btn').forEach(btn => {
-        btn.onclick = closeAllModals;
-    });
 };
 
 window.submitComment = function(bikeId) {
@@ -360,7 +366,7 @@ window.showSoldDetails = function(soldId) {
         <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-start mb-4">
                 <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
-                <button onclick="closeAllModals()" class="close-modal-btn text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                <button onclick="window.closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
             ${sold.image ? `
                 <div class="relative">
@@ -383,25 +389,25 @@ window.showSoldDetails = function(soldId) {
                 <div class="mb-4">
                     <div class="mb-2">
                         <p class="text-sm text-gray-600 mb-2">Rate your experience:</p>
-                        <div class="flex gap-1 mb-3" id="rating-stars">
-                            ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer hover:text-yellow-500" data-rating="${i}" onclick="setRating(${i})"></i>`).join('')}
+                        <div class="flex gap-1 mb-3" id="rating-stars-${soldId}">
+                            ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer hover:text-yellow-500" data-rating="${i}" onclick="window.setRating('${soldId}', ${i})"></i>`).join('')}
                         </div>
-                        <input type="hidden" id="selected-rating" value="0">
-                        <textarea id="feedback-comment" placeholder="Share your experience with this purchase..." class="w-full border rounded-lg px-4 py-2 mb-2" rows="2"></textarea>
-                        <button onclick="submitFeedback('${sold._id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Submit Feedback</button>
+                        <input type="hidden" id="selected-rating-${soldId}" value="0">
+                        <textarea id="feedback-comment-${soldId}" placeholder="Share your experience with this purchase..." class="w-full border rounded-lg px-4 py-2 mb-2" rows="2"></textarea>
+                        <button onclick="window.submitFeedback('${soldId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Submit Feedback</button>
                     </div>
                 </div>
-                <div id="feedbacks-list" class="max-h-60 overflow-y-auto">
+                <div id="feedbacks-list-${soldId}" class="max-h-60 overflow-y-auto">
                     ${feedbacksHtml || '<p class="text-gray-500 text-center py-4">No feedback yet. Be the first to share your experience!</p>'}
                 </div>
             </div>
             
             <div class="mt-6 flex gap-3">
                 ${token ? `
-                    <button onclick="window.editSold('${sold._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Entry</button>
-                    <button onclick="window.deleteSold('${sold._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Entry</button>
+                    <button onclick="window.editSold('${sold._id}'); window.closeModal();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Entry</button>
+                    <button onclick="window.deleteSold('${sold._id}'); window.closeModal();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Entry</button>
                 ` : ''}
-                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
+                <button onclick="window.closeModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
             </div>
         </div>
     `;
@@ -416,17 +422,12 @@ window.showSoldDetails = function(soldId) {
     modal.innerHTML = modalHtml;
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
-    
-    // Attach close event
-    modal.querySelectorAll('.close-modal-btn').forEach(btn => {
-        btn.onclick = closeAllModals;
-    });
 };
 
-window.setRating = function(rating) {
-    document.getElementById('selected-rating').value = rating;
+window.setRating = function(soldId, rating) {
+    document.getElementById(`selected-rating-${soldId}`).value = rating;
     for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
+        const star = document.querySelector(`#rating-stars-${soldId} i[data-rating="${i}"]`);
         if (star) {
             if (i <= rating) {
                 star.classList.remove('text-gray-300');
@@ -440,8 +441,8 @@ window.setRating = function(rating) {
 };
 
 window.submitFeedback = function(soldId) {
-    const rating = parseInt(document.getElementById('selected-rating').value);
-    const comment = document.getElementById('feedback-comment').value;
+    const rating = parseInt(document.getElementById(`selected-rating-${soldId}`).value);
+    const comment = document.getElementById(`feedback-comment-${soldId}`).value;
     
     if (rating === 0) {
         showToast('Please select a rating!', true);
@@ -454,11 +455,11 @@ window.submitFeedback = function(soldId) {
     
     const userName = token && currentUser ? currentUser.username : 'Customer';
     addFeedback(soldId, rating, comment, userName);
-    document.getElementById('selected-rating').value = 0;
-    document.getElementById('feedback-comment').value = '';
+    document.getElementById(`selected-rating-${soldId}`).value = 0;
+    document.getElementById(`feedback-comment-${soldId}`).value = '';
     // Reset stars
     for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
+        const star = document.querySelector(`#rating-stars-${soldId} i[data-rating="${i}"]`);
         if (star) {
             star.classList.remove('text-yellow-500');
             star.classList.add('text-gray-300');
@@ -466,20 +467,7 @@ window.submitFeedback = function(soldId) {
     }
 };
 
-function addFeedback(soldId, rating, comment, userName) {
-    if (!feedbacks[soldId]) feedbacks[soldId] = [];
-    feedbacks[soldId].push({
-        id: Date.now(),
-        rating: rating,
-        comment: comment,
-        user: userName,
-        date: new Date().toLocaleString()
-    });
-    saveFeedbacks();
-    showSoldDetails(soldId);
-}
-
-// ============= PAGE TEMPLATES =============
+// ============= PAGE TEMPLATES (same as before) =============
 const templates = {
     home: () => `
         <header class="hero-gradient min-h-[75vh] flex items-center justify-center text-center text-white">
@@ -1052,7 +1040,7 @@ document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
     });
 });
 
-// Close modal buttons
+// Close modal buttons - FIXED
 document.getElementById('closeModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeSoldModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeLogoModalBtn')?.addEventListener('click', closeAllModals);
