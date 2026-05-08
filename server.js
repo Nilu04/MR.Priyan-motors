@@ -1,4 +1,4 @@
-// server.js - Complete Working Backend
+// server.js - Complete Working Backend with Fixed Delete
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -168,8 +168,8 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, user: { id: user.id, username: user.username } });
+    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ token, user: { id: user._id, username: user.username } });
   } catch (err) {
     res.status(500).json({ error: 'Database error' });
   }
@@ -179,7 +179,7 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     const validPassword = await bcrypt.compare(currentPassword, user.password);
     
     if (!validPassword) {
@@ -187,7 +187,7 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
     }
     
     const hashedNewPassword = bcrypt.hashSync(newPassword, 10);
-    await User.findByIdAndUpdate(req.user.id, { password: hashedNewPassword });
+    await User.findByIdAndUpdate(req.user._id, { password: hashedNewPassword });
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update password' });
@@ -198,8 +198,8 @@ app.post('/api/change-username', authenticateToken, async (req, res) => {
   const { newUsername } = req.body;
   
   try {
-    await User.findByIdAndUpdate(req.user.id, { username: newUsername });
-    const newToken = jwt.sign({ id: req.user.id, username: newUsername }, JWT_SECRET, { expiresIn: '24h' });
+    await User.findByIdAndUpdate(req.user._id, { username: newUsername });
+    const newToken = jwt.sign({ id: req.user._id, username: newUsername }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ message: 'Username changed successfully', token: newToken, username: newUsername });
   } catch (err) {
     res.status(400).json({ error: 'Username already exists' });
@@ -207,12 +207,12 @@ app.post('/api/change-username', authenticateToken, async (req, res) => {
 });
 
 app.get('/api/me', authenticateToken, async (req, res) => {
-  const user = await User.findById(req.user.id).select('-password');
+  const user = await User.findById(req.user._id).select('-password');
   res.json(user);
 });
 
 app.get('/api/verify-token', authenticateToken, (req, res) => {
-  res.json({ valid: true, user: { id: req.user.id, username: req.user.username } });
+  res.json({ valid: true, user: { id: req.user._id, username: req.user.username } });
 });
 
 // ============= BIKE ROUTES =============
@@ -236,7 +236,7 @@ app.post('/api/bikes', authenticateToken, upload.single('image'), async (req, re
     }
     
     const bike = await Bike.create(bikeData);
-    res.json({ id: bike.id, message: 'Bike added successfully', bike });
+    res.json({ id: bike._id, message: 'Bike added successfully', bike });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -267,9 +267,25 @@ app.put('/api/bikes/:id', authenticateToken, upload.single('image'), async (req,
 app.delete('/api/bikes/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    await Bike.findByIdAndDelete(id);
+    console.log('Deleting bike with ID:', id);
+    
+    if (!id || id === 'undefined') {
+      return res.status(400).json({ error: 'Invalid bike ID' });
+    }
+    
+    // Check if ID is valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid bike ID format' });
+    }
+    
+    const deleted = await Bike.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Bike not found' });
+    }
+    
     res.json({ message: 'Bike deleted successfully' });
   } catch (err) {
+    console.error('Delete error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -295,7 +311,7 @@ app.post('/api/sold', authenticateToken, upload.single('image'), async (req, res
     }
     
     const sold = await Sold.create(soldData);
-    res.json({ id: sold.id, message: 'Sold entry added successfully', sold });
+    res.json({ id: sold._id, message: 'Sold entry added successfully', sold });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -326,9 +342,24 @@ app.put('/api/sold/:id', authenticateToken, upload.single('image'), async (req, 
 app.delete('/api/sold/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    await Sold.findByIdAndDelete(id);
+    console.log('Deleting sold entry with ID:', id);
+    
+    if (!id || id === 'undefined') {
+      return res.status(400).json({ error: 'Invalid sold entry ID' });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
+    
+    const deleted = await Sold.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Sold entry not found' });
+    }
+    
     res.json({ message: 'Sold entry deleted successfully' });
   } catch (err) {
+    console.error('Delete error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -341,11 +372,13 @@ app.get('/api/settings/:key', async (req, res) => {
 
 app.post('/api/settings/logo', authenticateToken, upload.single('logo'), async (req, res) => {
   let logoUrl = req.body.logoUrl;
-  if (req.file) logoUrl = bufferToBase64(req.file.buffer, req.file.mimetype);
+  if (req.file) {
+    logoUrl = bufferToBase64(req.file.buffer, req.file.mimetype);
+  }
   
   await Setting.findOneAndUpdate(
     { key: 'website_logo' },
-    { key: 'website_logo', value: logoUrl },
+    { key: 'website_logo', value: logoUrl, updated_at: new Date() },
     { upsert: true }
   );
   res.json({ logoUrl });
