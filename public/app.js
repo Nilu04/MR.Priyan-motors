@@ -1,4 +1,4 @@
-// app.js - Complete with Click to View Details
+// app.js - Complete with Working Click for Details
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -61,6 +61,89 @@ async function apiCall(endpoint, options = {}) {
         return null;
     }
 }
+
+// ============= DETAILS MODAL FUNCTIONS (FIXED) =============
+window.showBikeDetails = function(bikeId) {
+    const bike = bikes.find(b => b._id === bikeId);
+    if (!bike) return;
+    
+    const modalHtml = `
+        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
+                <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold text-blue-600">${bike.price}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Year</p><p class="text-lg font-semibold">${bike.year}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📊 Kilometers</p><p class="text-lg font-semibold">${bike.km}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Added On</p><p class="text-lg font-semibold">${new Date(bike.created_at).toLocaleDateString()}</p></div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                ${token ? `
+                    <button onclick="window.editBike('${bike._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
+                    <button onclick="window.deleteBike('${bike._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
+                ` : `
+                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition"><i class="fab fa-whatsapp"></i> Inquire Now</a>
+                `}
+                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
+            </div>
+        </div>
+    `;
+    
+    let modal = document.getElementById('bikeDetailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'bikeDetailsModal';
+        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = modalHtml;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+window.showSoldDetails = function(soldId) {
+    const sold = soldList.find(s => s._id === soldId);
+    if (!sold) return;
+    
+    const modalHtml = `
+        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
+                <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            ${sold.image ? `<img src="${sold.image}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.style.display='none'">` : ''}
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Sold Price</p><p class="text-xl font-bold text-green-600">${sold.sold_price}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">👤 Buyer Name</p><p class="text-lg font-semibold">${escapeHtml(sold.buyer)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Sold Date</p><p class="text-lg font-semibold">${sold.month_year}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Recorded On</p><p class="text-lg font-semibold">${new Date(sold.created_at).toLocaleDateString()}</p></div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                ${token ? `
+                    <button onclick="window.editSold('${sold._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Entry</button>
+                    <button onclick="window.deleteSold('${sold._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Entry</button>
+                ` : ''}
+                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
+            </div>
+        </div>
+    `;
+    
+    let modal = document.getElementById('soldDetailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'soldDetailsModal';
+        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = modalHtml;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
 
 // ============= PAGE TEMPLATES =============
 const templates = {
@@ -129,83 +212,6 @@ const templates = {
             </div>
         </div>
     `
-};
-
-// ============= DETAILS MODAL FUNCTIONS =============
-window.showBikeDetails = (bike) => {
-    const modalHtml = `
-        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
-                <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            </div>
-            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold text-blue-600">${bike.price}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Year</p><p class="text-lg font-semibold">${bike.year}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📊 Kilometers</p><p class="text-lg font-semibold">${bike.km}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Added On</p><p class="text-lg font-semibold">${new Date(bike.created_at).toLocaleDateString()}</p></div>
-            </div>
-            <div class="mt-6 flex gap-3">
-                ${token ? `
-                    <button onclick="window.editBike('${bike._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
-                    <button onclick="window.deleteBike('${bike._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
-                ` : `
-                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition"><i class="fab fa-whatsapp"></i> Inquire Now</a>
-                `}
-                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
-            </div>
-        </div>
-    `;
-    
-    let modal = document.getElementById('bikeDetailsModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'bikeDetailsModal';
-        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
-        document.body.appendChild(modal);
-    }
-    modal.innerHTML = modalHtml;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-};
-
-window.showSoldDetails = (sold) => {
-    const modalHtml = `
-        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
-                <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            </div>
-            ${sold.image ? `<img src="${sold.image}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.style.display='none'">` : ''}
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Sold Price</p><p class="text-xl font-bold text-green-600">${sold.sold_price}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">👤 Buyer Name</p><p class="text-lg font-semibold">${escapeHtml(sold.buyer)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Sold Date</p><p class="text-lg font-semibold">${sold.month_year}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Recorded On</p><p class="text-lg font-semibold">${new Date(sold.created_at).toLocaleDateString()}</p></div>
-            </div>
-            <div class="mt-6 flex gap-3">
-                ${token ? `
-                    <button onclick="window.editSold('${sold._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Entry</button>
-                    <button onclick="window.deleteSold('${sold._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Entry</button>
-                ` : ''}
-                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
-            </div>
-        </div>
-    `;
-    
-    let modal = document.getElementById('soldDetailsModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'soldDetailsModal';
-        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
-        document.body.appendChild(modal);
-    }
-    modal.innerHTML = modalHtml;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
 };
 
 // ============= NAVIGATION =============
@@ -287,7 +293,7 @@ function renderBikes() {
         return;
     }
     grid.innerHTML = bikes.map(bike => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border hover:shadow-lg transition cursor-pointer" onclick="window.showBikeDetails(${JSON.stringify(bike).replace(/</g, '\\u003c')})">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border hover:shadow-lg transition cursor-pointer" onclick="window.showBikeDetails('${bike._id}')">
             <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
             <div class="p-4">
                 <h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3>
@@ -298,7 +304,7 @@ function renderBikes() {
                     <span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span>
                     <span><i class="fas fa-tag"></i> ${bike.brand}</span>
                 </div>
-                <div class="mt-3 text-xs text-gray-400">Click for details →</div>
+                <div class="mt-3 text-xs text-gray-400">🔍 Click for details →</div>
             </div>
         </div>
     `).join('');
@@ -312,13 +318,13 @@ function renderSold() {
         return;
     }
     grid.innerHTML = soldList.map(s => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md sold-card border-l-8 border-green-500 hover:shadow-lg transition cursor-pointer" onclick="window.showSoldDetails(${JSON.stringify(s).replace(/</g, '\\u003c')})">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-md sold-card border-l-8 border-green-500 hover:shadow-lg transition cursor-pointer" onclick="window.showSoldDetails('${s._id}')">
             <div class="p-4">
                 <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
                 <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
                 <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
                 ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onerror="this.style.display='none'"></div>` : ''}
-                <div class="mt-2 text-xs text-gray-400">Click for details →</div>
+                <div class="mt-2 text-xs text-gray-400">🔍 Click for details →</div>
             </div>
         </div>
     `).join('');
