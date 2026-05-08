@@ -1,4 +1,4 @@
-// server.js - Complete with Comments and Feedback
+// server.js - Complete Backend for Mr. Priyan Motors
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -18,7 +18,9 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://priyan_admin:Priya
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static('public'));
+
+// Serve static files from root directory
+app.use(express.static(__dirname));
 
 // Configure multer for memory storage
 const upload = multer({ 
@@ -144,6 +146,7 @@ async function initializeData() {
     const logoSetting = await Setting.findOne({ key: 'website_logo' });
     if (!logoSetting) {
       await Setting.create({ key: 'website_logo', value: 'https://placehold.co/400x400/1E3A8A/white?text=PM' });
+      console.log('✅ Default logo set');
     }
     
     const bikeCount = await Bike.countDocuments();
@@ -154,6 +157,7 @@ async function initializeData() {
         { name: "YAMAHA RAY ZR", price: "Rs. 490,000", price_num: 490000, year: "2018", km: "32,800 km", location: "Batticaloa", brand: "YAMAHA", image: "https://i.ibb.co/1tbJmkkr/b3.jpg" }
       ];
       await Bike.insertMany(sampleBikes);
+      console.log('✅ Sample bikes added');
     }
     
     const soldCount = await Sold.countDocuments();
@@ -163,6 +167,7 @@ async function initializeData() {
         { name: "Yamaha FZ V3", sold_price: "Rs. 485,000", sold_price_num: 485000, month_year: "Mar 2025", buyer: "Mrs. Santhiya", image: "https://i.ibb.co/yF2W5xJp/b2.jpg" }
       ];
       await Sold.insertMany(sampleSold);
+      console.log('✅ Sample sold entries added');
     }
   } catch (err) {
     console.error('Init error:', err);
@@ -470,14 +475,41 @@ app.get('/api/settings/logo', async (req, res) => {
   res.json({ logoUrl: setting ? setting.value : 'https://placehold.co/400x400/1E3A8A/white?text=PM' });
 });
 
-// Serve frontend
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// ============= SERVE HTML PAGES =============
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+app.get('/bikes.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'bikes.html'));
+});
+app.get('/sold.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'sold.html'));
+});
+app.get('/exchange.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'exchange.html'));
+});
+app.get('/contact.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'contact.html'));
+});
+app.get('/styles.css', (req, res) => {
+  res.sendFile(path.join(__dirname, 'styles.css'));
+});
+app.get('/script.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'script.js'));
 });
 
-// Start server
+// ============= START SERVER =============
 initializeData().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`\n🚀 Server running on port ${PORT}`);
+    console.log(`📍 Home: http://localhost:${PORT}/`);
+    console.log(`📍 Bikes: http://localhost:${PORT}/bikes.html`);
+    console.log(`📍 Sold: http://localhost:${PORT}/sold.html`);
+    console.log(`🔐 Admin login: admin / admin123\n`);
+  });
+}).catch(err => {
+  console.error('Failed to initialize data:', err);
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT} (with warnings)`);
   });
 });
