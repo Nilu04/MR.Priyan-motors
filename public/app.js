@@ -1,4 +1,4 @@
-// app.js - Complete Working Version with Fixed Delete and Logo
+// app.js - Complete Working Version
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -28,7 +28,7 @@ function escapeHtml(str) {
 }
 
 function closeAllModals() {
-    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal'];
+    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal', 'profileModal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
@@ -229,6 +229,7 @@ function renderSold() {
             <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3><p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
             <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
             ${token ? `<div class="flex gap-3 mt-4"><button onclick="window.editSold('${s._id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="window.deleteSold('${s._id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
+            ${s.image ? `<div class="mt-3"><img src="${s.image}" class="w-32 h-24 object-cover rounded-lg" onerror="this.style.display='none'"></div>` : ''}
         </div>
     `).join('');
 }
@@ -246,6 +247,10 @@ window.editBike = (id) => {
         document.getElementById('bikeLocation').value = bike.location;
         document.getElementById('bikeBrand').value = bike.brand;
         document.getElementById('bikeImageUrl').value = bike.image || '';
+        if (bike.image) {
+            document.getElementById('bikeImagePreview').src = bike.image;
+            document.getElementById('bikeImagePreview').classList.remove('hidden');
+        }
         document.getElementById('editBikeModal').classList.remove('hidden');
     }
 };
@@ -256,9 +261,6 @@ window.deleteBike = async (id) => {
     if (response && response.ok) {
         showToast('Bike deleted successfully');
         loadBikes();
-    } else if (response) {
-        const error = await response.json();
-        showToast(error.error || 'Failed to delete bike', true);
     } else {
         showToast('Failed to delete bike', true);
     }
@@ -274,6 +276,10 @@ window.editSold = (id) => {
         document.getElementById('soldMonthYear').value = sold.month_year;
         document.getElementById('soldBuyer').value = sold.buyer;
         document.getElementById('soldImageUrl').value = sold.image || '';
+        if (sold.image) {
+            document.getElementById('soldImagePreview').src = sold.image;
+            document.getElementById('soldImagePreview').classList.remove('hidden');
+        }
         document.getElementById('editSoldModal').classList.remove('hidden');
     }
 };
@@ -284,9 +290,6 @@ window.deleteSold = async (id) => {
     if (response && response.ok) {
         showToast('Sold entry removed successfully');
         loadSold();
-    } else if (response) {
-        const error = await response.json();
-        showToast(error.error || 'Failed to delete sold entry', true);
     } else {
         showToast('Failed to delete sold entry', true);
     }
@@ -359,12 +362,10 @@ document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
         showToast(id ? 'Bike updated successfully!' : 'Bike added successfully!');
         closeAllModals();
         loadBikes();
-    } else if (response) {
-        const error = await response.json();
-        showToast(error.error || 'Failed to save bike', true);
     }
 });
 
+// SOLD SAVE HANDLER WITH IMAGE
 document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
     const id = document.getElementById('editSoldId').value;
     const name = document.getElementById('soldName').value;
@@ -422,6 +423,100 @@ document.getElementById('saveSocialLinksBtn')?.addEventListener('click', async (
         }
     }
 });
+
+// ============= PROFILE PICTURE FUNCTIONS =============
+document.getElementById('uploadProfilePicBtn')?.addEventListener('click', () => {
+    document.getElementById('profilePicInput').click();
+});
+
+document.getElementById('profilePicInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    showToast('Uploading profile picture...');
+    
+    const response = await apiCall('/api/upload-profile-picture', {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (response && response.ok) {
+        const data = await response.json();
+        
+        if (currentUser) {
+            currentUser.profile_picture = data.imageUrl;
+        }
+        
+        // Update profile picture in UI
+        const profilePicElements = document.querySelectorAll('#profilePreview, #navProfilePic, #dropdownProfilePic');
+        profilePicElements.forEach(el => {
+            if (el) el.src = data.imageUrl;
+        });
+        
+        showToast('Profile picture updated successfully!');
+        closeAllModals();
+    } else {
+        showToast('Failed to upload profile picture', true);
+    }
+});
+
+// PROFILE MENU ITEM
+document.getElementById('profileMenuItem')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (token && currentUser) {
+        const response = await apiCall('/api/me');
+        if (response && response.ok) {
+            currentUser = await response.json();
+        }
+        document.getElementById('profileUsername').innerText = currentUser?.username || 'Admin';
+        document.getElementById('profileRole').innerText = 'Administrator';
+        document.getElementById('profilePreview').src = currentUser?.profile_picture || '';
+    } else {
+        document.getElementById('profileUsername').innerText = 'Guest';
+        document.getElementById('profileRole').innerText = 'Guest User';
+        document.getElementById('profilePreview').src = '';
+    }
+    document.getElementById('profileModal').classList.remove('hidden');
+});
+
+// Add profile menu to dropdown
+const accountDropdown = document.getElementById('accountDropdown');
+if (accountDropdown) {
+    const profileMenuItem = document.createElement('a');
+    profileMenuItem.href = '#';
+    profileMenuItem.id = 'profileMenuItem';
+    profileMenuItem.className = 'flex items-center gap-3 px-4 py-2 hover:bg-gray-50';
+    profileMenuItem.innerHTML = '<i class="fas fa-id-card w-5"></i> Profile';
+    profileMenuItem.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.showProfileModal();
+    });
+    
+    // Insert after first div
+    const firstDiv = accountDropdown.querySelector('div');
+    if (firstDiv) {
+        firstDiv.insertAdjacentElement('afterend', profileMenuItem);
+    }
+}
+
+window.showProfileModal = async () => {
+    if (token && currentUser) {
+        const response = await apiCall('/api/me');
+        if (response && response.ok) {
+            currentUser = await response.json();
+        }
+        document.getElementById('profileUsername').innerText = currentUser?.username || 'Admin';
+        document.getElementById('profileRole').innerText = 'Administrator';
+        document.getElementById('profilePreview').src = currentUser?.profile_picture || '';
+    } else {
+        document.getElementById('profileUsername').innerText = 'Guest';
+        document.getElementById('profileRole').innerText = 'Guest User';
+    }
+    document.getElementById('profileModal').classList.remove('hidden');
+};
 
 // ============= SETTINGS & AUTHENTICATION =============
 document.getElementById('settingsMenuItem')?.addEventListener('click', (e) => {
@@ -516,10 +611,6 @@ async function checkAuth() {
         document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
         document.getElementById('logoutBtn').classList.remove('hidden');
         document.getElementById('showLoginOption').classList.add('hidden');
-        document.getElementById('settingsMenuItem').classList.remove('hidden');
-        document.getElementById('changePasswordMenuItem').classList.remove('hidden');
-        document.getElementById('changeUsernameMenuItem').classList.remove('hidden');
-        document.getElementById('editLogoMenuItem').classList.remove('hidden');
         return true;
     }
     return false;
@@ -546,10 +637,6 @@ async function login(username, password) {
         document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
         document.getElementById('logoutBtn').classList.remove('hidden');
         document.getElementById('showLoginOption').classList.add('hidden');
-        document.getElementById('settingsMenuItem').classList.remove('hidden');
-        document.getElementById('changePasswordMenuItem').classList.remove('hidden');
-        document.getElementById('changeUsernameMenuItem').classList.remove('hidden');
-        document.getElementById('editLogoMenuItem').classList.remove('hidden');
         closeAllModals();
         showToast('Login successful!');
         if (currentPage === 'bikes') loadBikes();
@@ -623,8 +710,9 @@ document.getElementById('closeSettingsModalBtn')?.addEventListener('click', clos
 document.getElementById('closePasswordModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeUsernameModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeSocialLinksModalBtn')?.addEventListener('click', closeAllModals);
+document.getElementById('closeProfileModalBtn')?.addEventListener('click', closeAllModals);
 
-// Image preview
+// Image preview for bike
 document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -638,6 +726,7 @@ document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
     }
 });
 
+// Image preview for sold bike
 document.getElementById('soldImageUpload')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -668,7 +757,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Logo handlers - FIXED for persistence
+// Logo handlers
 document.getElementById('clickableLogo')?.addEventListener('click', () => {
     if (token) {
         document.getElementById('logoPreview').src = document.getElementById('siteLogo').src;
@@ -693,22 +782,9 @@ document.getElementById('saveLogoBtn')?.addEventListener('click', async () => {
         document.getElementById('siteLogo').src = data.logoUrl;
         showToast('Logo updated successfully!');
         closeAllModals();
-        // Reload to ensure persistence
-        setTimeout(() => {
-            loadLogo();
-        }, 500);
+        loadLogo();
     }
 });
-
-async function loadLogo() {
-    const response = await apiCall('/api/settings/logo');
-    if (response && response.ok) {
-        const data = await response.json();
-        if (data.logoUrl) {
-            document.getElementById('siteLogo').src = data.logoUrl;
-        }
-    }
-}
 
 document.getElementById('logoUploadInput')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -721,6 +797,16 @@ document.getElementById('logoUploadInput')?.addEventListener('change', (e) => {
         reader.readAsDataURL(file);
     }
 });
+
+async function loadLogo() {
+    const response = await apiCall('/api/settings/logo');
+    if (response && response.ok) {
+        const data = await response.json();
+        if (data.logoUrl) {
+            document.getElementById('siteLogo').src = data.logoUrl;
+        }
+    }
+}
 
 // ============= INITIALIZE =============
 async function init() {
