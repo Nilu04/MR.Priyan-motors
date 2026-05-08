@@ -1,4 +1,4 @@
-// app.js - Complete Working Version with Edit Functions and Feedback Replies
+// app.js - Optimized Version with Working Edit Buttons
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -6,15 +6,13 @@ let currentPage = 'home';
 let bikes = [];
 let soldList = [];
 let socialLinks = { whatsapp_group: '', facebook_page: '' };
-let commentsCache = {};
-let feedbacksCache = {};
 
 // ============= HELPER FUNCTIONS =============
 function showToast(message, isError = false) {
     const toast = document.createElement('div');
     toast.className = `toast ${isError ? 'bg-red-500' : 'bg-green-500'}`;
     toast.textContent = message;
-    toast.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); color: white; padding: 12px 24px; border-radius: 50px; z-index: 10000; animation: fadeInOut 3s ease;';
+    toast.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); color: white; padding: 12px 24px; border-radius: 50px; z-index: 10000;';
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
@@ -30,13 +28,10 @@ function escapeHtml(str) {
 }
 
 function closeAllModals() {
-    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal', 'bikeDetailsModal', 'soldDetailsModal', 'imagePreviewModal'];
+    const modals = ['loginModal', 'editBikeModal', 'editSoldModal', 'editLogoModal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
-        if (el) {
-            el.classList.add('hidden');
-            el.style.display = 'none';
-        }
+        if (el) el.classList.add('hidden');
     });
 }
 
@@ -44,7 +39,7 @@ window.closeModal = function() {
     closeAllModals();
 };
 
-// ============= API CALLS =============
+// ============= OPTIMIZED API CALLS =============
 async function apiCall(endpoint, options = {}) {
     const headers = { ...options.headers };
     
@@ -60,109 +55,13 @@ async function apiCall(endpoint, options = {}) {
         const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
         if (response.status === 401) {
             logout();
-            showToast('Session expired. Please login again.');
             return null;
         }
         return response;
     } catch (error) {
         console.error('API Error:', error);
-        showToast('Network error. Please try again.', true);
         return null;
     }
-}
-
-// ============= COMMENTS API =============
-async function loadComments(bikeId) {
-    const response = await apiCall(`/api/comments/${bikeId}`);
-    if (response && response.ok) {
-        commentsCache[bikeId] = await response.json();
-    }
-    return commentsCache[bikeId] || [];
-}
-
-async function addComment(bikeId, text, userName) {
-    const response = await apiCall('/api/comments', {
-        method: 'POST',
-        body: JSON.stringify({ bikeId, text, user: userName })
-    });
-    if (response && response.ok) {
-        showToast('Comment added!');
-        return true;
-    }
-    return false;
-}
-
-async function addReply(commentId, text, userName) {
-    const response = await apiCall(`/api/comments/${commentId}/reply`, {
-        method: 'POST',
-        body: JSON.stringify({ text, user: userName })
-    });
-    if (response && response.ok) {
-        showToast('Reply added!');
-        return true;
-    }
-    return false;
-}
-
-async function deleteComment(commentId) {
-    if (!token) {
-        showToast('Only admin can delete comments', true);
-        return false;
-    }
-    if (!confirm('Delete this comment?')) return false;
-    const response = await apiCall(`/api/comments/${commentId}`, { method: 'DELETE' });
-    if (response && response.ok) {
-        showToast('Comment deleted');
-        return true;
-    }
-    return false;
-}
-
-// ============= FEEDBACK API (with reply) =============
-async function loadFeedbacks(soldId) {
-    const response = await apiCall(`/api/feedbacks/${soldId}`);
-    if (response && response.ok) {
-        feedbacksCache[soldId] = await response.json();
-    }
-    return feedbacksCache[soldId] || [];
-}
-
-async function addFeedback(soldId, rating, comment, userName) {
-    const response = await apiCall('/api/feedbacks', {
-        method: 'POST',
-        body: JSON.stringify({ soldId, rating, comment, user: userName })
-    });
-    if (response && response.ok) {
-        showToast('Feedback submitted!');
-        return true;
-    }
-    return false;
-}
-
-async function addFeedbackReply(feedbackId, text, userName) {
-    const response = await apiCall(`/api/feedbacks/${feedbackId}/reply`, {
-        method: 'POST',
-        body: JSON.stringify({ text, user: userName })
-    });
-    if (response && response.ok) {
-        showToast('Reply added!');
-        return true;
-    }
-    return false;
-}
-
-async function deleteFeedback(feedbackId) {
-    if (!token) {
-        showToast('Only admin can delete feedback', true);
-        return false;
-    }
-    if (!confirm('Delete this feedback?')) return false;
-    const response = await apiCall(`/api/feedbacks/${feedbackId}`, { method: 'DELETE' });
-    if (response && response.ok) {
-        showToast('Feedback deleted');
-        return true;
-    }
-    return false;
 }
 
 // ============= IMAGE PREVIEW =============
@@ -174,9 +73,7 @@ window.showImagePreview = function(imageUrl) {
         modal.className = 'fixed inset-0 z-[500] hidden items-center justify-center modal-overlay p-4';
         modal.innerHTML = `
             <div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-4">
-                <div class="flex justify-end mb-2">
-                    <button onclick="window.closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-                </div>
+                <div class="flex justify-end"><button onclick="document.getElementById('imagePreviewModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button></div>
                 <img id="previewImage" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg">
             </div>
         `;
@@ -184,13 +81,12 @@ window.showImagePreview = function(imageUrl) {
     }
     document.getElementById('previewImage').src = imageUrl;
     modal.classList.remove('hidden');
-    modal.style.display = 'flex';
 };
 
 // ============= MARK AS SOLD =============
 window.markAsSold = async function(bikeId) {
     if (!token) {
-        showToast('Please login as admin to mark as sold', true);
+        showToast('Please login as admin', true);
         document.getElementById('loginModal').classList.remove('hidden');
         return;
     }
@@ -204,7 +100,7 @@ window.markAsSold = async function(bikeId) {
     const soldPrice = prompt('Enter sold price (Rs.):', bike.price.replace('Rs.', '').trim());
     if (!soldPrice) return;
     
-    const monthYear = prompt('Enter month/year (e.g., May 2025):', new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
+    const monthYear = prompt('Enter month/year:', new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
     if (!monthYear) return;
     
     const soldData = {
@@ -216,333 +112,26 @@ window.markAsSold = async function(bikeId) {
         image: bike.image
     };
     
-    const response = await apiCall('/api/sold', {
-        method: 'POST',
-        body: JSON.stringify(soldData)
-    });
-    
+    const response = await apiCall('/api/sold', { method: 'POST', body: JSON.stringify(soldData) });
     if (response && response.ok) {
         await apiCall(`/api/bikes/${bikeId}`, { method: 'DELETE' });
-        showToast('Bike marked as sold and moved to sold page!');
+        showToast('Bike marked as sold!');
         loadBikes();
         loadSold();
         closeAllModals();
-    } else {
-        showToast('Failed to mark as sold', true);
     }
 };
 
-// ============= DETAILS MODAL FUNCTIONS =============
-window.showBikeDetails = async function(bikeId) {
-    const bike = bikes.find(b => b._id === bikeId);
-    if (!bike) return;
-    
-    const comments = await loadComments(bikeId);
-    
-    const commentsHtml = comments.map(comment => `
-        <div class="bg-gray-50 rounded-lg p-3 mb-3">
-            <div class="flex justify-between items-start">
-                <div>
-                    <span class="font-semibold text-blue-600">${escapeHtml(comment.user)}</span>
-                    <span class="text-xs text-gray-400 ml-2">${comment.date}</span>
-                </div>
-                <div>
-                    <button onclick="window.showReplyForm('${comment._id}')" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
-                    ${token ? `<button onclick="window.deleteAndRefreshComment('${comment._id}', '${bikeId}')" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash"></i> Delete</button>` : ''}
-                </div>
-            </div>
-            <p class="text-gray-700 mt-1">${escapeHtml(comment.text)}</p>
-            <div id="replies-${comment._id}" class="ml-4 mt-2">
-                ${(comment.replies || []).map(reply => `
-                    <div class="bg-gray-100 rounded-lg p-2 mb-2">
-                        <div><span class="font-semibold text-green-600">${escapeHtml(reply.user)}</span> <span class="text-xs text-gray-400">${reply.date}</span></div>
-                        <p class="text-gray-700 text-sm">${escapeHtml(reply.text)}</p>
-                    </div>
-                `).join('')}
-            </div>
-            <div id="reply-form-${comment._id}" class="hidden mt-2">
-                <div class="flex gap-2">
-                    <input type="text" id="reply-input-${comment._id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
-                    <button onclick="window.submitReplyAndRefresh('${comment._id}', '${bikeId}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-    
-    const modalHtml = `
-        <div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
-                <button onclick="window.closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            </div>
-            <div class="relative">
-                <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="window.showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
-                <button onclick="window.showImagePreview('${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
-                    <i class="fas fa-search-plus"></i>
-                </button>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold text-blue-600">${bike.price}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Year</p><p class="text-lg font-semibold">${bike.year}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📊 Kilometers</p><p class="text-lg font-semibold">${bike.km}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Added On</p><p class="text-lg font-semibold">${new Date(bike.created_at).toLocaleDateString()}</p></div>
-            </div>
-            
-            <div class="mt-6 border-t pt-4">
-                <h3 class="text-lg font-bold mb-3">💬 Comments & Questions</h3>
-                <div class="mb-4">
-                    <div class="flex gap-2">
-                        <input type="text" id="comment-input" placeholder="Write a comment or ask a question..." class="flex-1 border rounded-lg px-4 py-2">
-                        <button onclick="window.submitCommentAndRefresh('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Post</button>
-                    </div>
-                </div>
-                <div id="comments-list" class="max-h-60 overflow-y-auto">
-                    ${commentsHtml || '<p class="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>'}
-                </div>
-            </div>
-            
-            <div class="mt-6 flex gap-3 flex-wrap">
-                <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" target="_blank" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition"><i class="fab fa-whatsapp"></i> Inquire Now on WhatsApp</a>
-                ${token ? `
-                    <button onclick="window.editBike('${bike._id}')" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
-                    <button onclick="window.deleteBike('${bike._id}')" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
-                ` : ''}
-                <button onclick="window.markAsSold('${bike._id}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"><i class="fas fa-tag"></i> Mark as Sold</button>
-                <button onclick="window.closeModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
-            </div>
-        </div>
-    `;
-    
-    let modal = document.getElementById('bikeDetailsModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'bikeDetailsModal';
-        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
-        document.body.appendChild(modal);
-    }
-    modal.innerHTML = modalHtml;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-};
-
-window.submitCommentAndRefresh = async function(bikeId) {
-    const input = document.getElementById('comment-input');
-    const commentText = input.value;
-    if (!commentText.trim()) return;
-    
-    const userName = token && currentUser ? currentUser.username : 'Customer';
-    await addComment(bikeId, commentText, userName);
-    input.value = '';
-    await window.showBikeDetails(bikeId);
-};
-
-window.showReplyForm = function(commentId) {
-    const form = document.getElementById(`reply-form-${commentId}`);
-    if (form) form.classList.toggle('hidden');
-};
-
-window.submitReplyAndRefresh = async function(commentId, bikeId) {
-    const input = document.getElementById(`reply-input-${commentId}`);
-    const replyText = input.value;
-    if (!replyText.trim()) return;
-    
-    const userName = token && currentUser ? currentUser.username : 'Admin';
-    await addReply(commentId, replyText, userName);
-    input.value = '';
-    document.getElementById(`reply-form-${commentId}`).classList.add('hidden');
-    await window.showBikeDetails(bikeId);
-};
-
-window.deleteAndRefreshComment = async function(commentId, bikeId) {
-    const success = await deleteComment(commentId);
-    if (success) {
-        await window.showBikeDetails(bikeId);
-    }
-};
-
-// ============= SOLD DETAILS WITH FEEDBACK AND REPLIES =============
-window.showSoldDetails = async function(soldId) {
-    const sold = soldList.find(s => s._id === soldId);
-    if (!sold) return;
-    
-    const feedbacks = await loadFeedbacks(soldId);
-    
-    const feedbacksHtml = feedbacks.map(fb => `
-        <div class="bg-gray-50 rounded-lg p-3 mb-3">
-            <div class="flex justify-between items-start">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="flex text-yellow-500">
-                        ${'★'.repeat(fb.rating)}${'☆'.repeat(5 - fb.rating)}
-                    </div>
-                    <span class="font-semibold text-blue-600">${escapeHtml(fb.user)}</span>
-                    <span class="text-xs text-gray-400">${fb.date}</span>
-                </div>
-                <div>
-                    <button onclick="window.showFeedbackReplyForm('${fb._id}')" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
-                    ${token ? `<button onclick="window.deleteAndRefreshFeedback('${fb._id}', '${soldId}')" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash"></i> Delete</button>` : ''}
-                </div>
-            </div>
-            <p class="text-gray-700">${escapeHtml(fb.comment)}</p>
-            <div id="feedback-replies-${fb._id}" class="ml-4 mt-2">
-                ${(fb.replies || []).map(reply => `
-                    <div class="bg-gray-100 rounded-lg p-2 mb-2">
-                        <div><span class="font-semibold text-green-600">${escapeHtml(reply.user)}</span> <span class="text-xs text-gray-400">${reply.date}</span></div>
-                        <p class="text-gray-700 text-sm">${escapeHtml(reply.text)}</p>
-                    </div>
-                `).join('')}
-            </div>
-            <div id="feedback-reply-form-${fb._id}" class="hidden mt-2">
-                <div class="flex gap-2">
-                    <input type="text" id="feedback-reply-input-${fb._id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
-                    <button onclick="window.submitFeedbackReplyAndRefresh('${fb._id}', '${soldId}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-    
-    const modalHtml = `
-        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
-                <button onclick="window.closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            </div>
-            ${sold.image ? `
-                <div class="relative">
-                    <img src="${sold.image}" class="w-full h-80 object-cover rounded-xl mb-4 cursor-pointer" onclick="window.showImagePreview('${sold.image}')" onerror="this.style.display='none'">
-                    <button onclick="window.showImagePreview('${sold.image}')" class="absolute bottom-6 right-6 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition">
-                        <i class="fas fa-search-plus"></i>
-                    </button>
-                </div>
-            ` : ''}
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Sold Price</p><p class="text-xl font-bold text-green-600">${sold.sold_price}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">👤 Buyer Name</p><p class="text-lg font-semibold">${escapeHtml(sold.buyer)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Sold Date</p><p class="text-lg font-semibold">${sold.month_year}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Recorded On</p><p class="text-lg font-semibold">${new Date(sold.created_at).toLocaleDateString()}</p></div>
-            </div>
-            
-            <div class="mt-6 border-t pt-4">
-                <h3 class="text-lg font-bold mb-3">⭐ Customer Feedback</h3>
-                <div class="mb-4">
-                    <div class="mb-2">
-                        <p class="text-sm text-gray-600 mb-2">Rate your experience:</p>
-                        <div class="flex gap-1 mb-3" id="rating-stars">
-                            ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer hover:text-yellow-500" data-rating="${i}" onclick="window.setRating(${i})"></i>`).join('')}
-                        </div>
-                        <input type="hidden" id="selected-rating" value="0">
-                        <textarea id="feedback-comment" placeholder="Share your experience with this purchase..." class="w-full border rounded-lg px-4 py-2 mb-2" rows="2"></textarea>
-                        <button onclick="window.submitFeedbackAndRefresh('${soldId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Submit Feedback</button>
-                    </div>
-                </div>
-                <div id="feedbacks-list" class="max-h-60 overflow-y-auto">
-                    ${feedbacksHtml || '<p class="text-gray-500 text-center py-4">No feedback yet. Be the first to share your experience!</p>'}
-                </div>
-            </div>
-            
-            <div class="mt-6 flex gap-3">
-                ${token ? `
-                    <button onclick="window.editSold('${sold._id}')" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Entry</button>
-                    <button onclick="window.deleteSold('${sold._id}')" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Entry</button>
-                ` : ''}
-                <button onclick="window.closeModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
-            </div>
-        </div>
-    `;
-    
-    let modal = document.getElementById('soldDetailsModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'soldDetailsModal';
-        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
-        document.body.appendChild(modal);
-    }
-    modal.innerHTML = modalHtml;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-};
-
-let currentRating = 0;
-window.setRating = function(rating) {
-    currentRating = rating;
-    document.getElementById('selected-rating').value = rating;
-    for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
-        if (star) {
-            if (i <= rating) {
-                star.classList.remove('text-gray-300');
-                star.classList.add('text-yellow-500');
-            } else {
-                star.classList.remove('text-yellow-500');
-                star.classList.add('text-gray-300');
-            }
-        }
-    }
-};
-
-window.submitFeedbackAndRefresh = async function(soldId) {
-    const rating = parseInt(document.getElementById('selected-rating').value);
-    const comment = document.getElementById('feedback-comment').value;
-    
-    if (rating === 0) {
-        showToast('Please select a rating!', true);
-        return;
-    }
-    if (!comment.trim()) {
-        showToast('Please write your feedback!', true);
-        return;
-    }
-    
-    const userName = token && currentUser ? currentUser.username : 'Customer';
-    await addFeedback(soldId, rating, comment, userName);
-    document.getElementById('selected-rating').value = 0;
-    document.getElementById('feedback-comment').value = '';
-    currentRating = 0;
-    for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
-        if (star) {
-            star.classList.remove('text-yellow-500');
-            star.classList.add('text-gray-300');
-        }
-    }
-    await window.showSoldDetails(soldId);
-};
-
-window.showFeedbackReplyForm = function(feedbackId) {
-    const form = document.getElementById(`feedback-reply-form-${feedbackId}`);
-    if (form) form.classList.toggle('hidden');
-};
-
-window.submitFeedbackReplyAndRefresh = async function(feedbackId, soldId) {
-    const input = document.getElementById(`feedback-reply-input-${feedbackId}`);
-    const replyText = input.value;
-    if (!replyText.trim()) return;
-    
-    const userName = token && currentUser ? currentUser.username : 'Admin';
-    await addFeedbackReply(feedbackId, replyText, userName);
-    input.value = '';
-    document.getElementById(`feedback-reply-form-${feedbackId}`).classList.add('hidden');
-    await window.showSoldDetails(soldId);
-};
-
-window.deleteAndRefreshFeedback = async function(feedbackId, soldId) {
-    const success = await deleteFeedback(feedbackId);
-    if (success) {
-        await window.showSoldDetails(soldId);
-    }
-};
-
-// ============= EDIT FUNCTIONS =============
+// ============= EDIT FUNCTIONS (FIXED) =============
 window.editBike = function(id) {
+    console.log('Edit bike called with ID:', id);
     const bike = bikes.find(b => b._id === id);
     if (!bike) {
         showToast('Bike not found!', true);
         return;
     }
     
-    // Fill the edit modal with bike data
-    document.getElementById('modalTitle').innerText = 'Edit Bike';
+    // Fill the edit modal
     document.getElementById('editBikeId').value = bike._id;
     document.getElementById('bikeName').value = bike.name;
     document.getElementById('bikePrice').value = bike.price.replace('Rs.', '').replace(/,/g, '').trim();
@@ -552,12 +141,12 @@ window.editBike = function(id) {
     document.getElementById('bikeBrand').value = bike.brand;
     document.getElementById('bikeImageUrl').value = bike.image || '';
     
-    const bikePreview = document.getElementById('bikeImagePreview');
+    const preview = document.getElementById('bikeImagePreview');
     if (bike.image) {
-        bikePreview.src = bike.image;
-        bikePreview.classList.remove('hidden');
+        preview.src = bike.image;
+        preview.classList.remove('hidden');
     } else {
-        bikePreview.classList.add('hidden');
+        preview.classList.add('hidden');
     }
     
     document.getElementById('editBikeModal').classList.remove('hidden');
@@ -565,28 +154,26 @@ window.editBike = function(id) {
 
 window.deleteBike = async function(id) {
     if (!token) {
-        showToast('Please login as admin to delete bikes', true);
+        showToast('Please login as admin', true);
         return;
     }
-    if (!confirm('Are you sure you want to delete this bike?')) return;
+    if (!confirm('Delete this bike?')) return;
     const response = await apiCall(`/api/bikes/${id}`, { method: 'DELETE' });
     if (response && response.ok) {
-        showToast('Bike deleted successfully');
+        showToast('Bike deleted');
         loadBikes();
         closeAllModals();
-    } else {
-        showToast('Failed to delete bike', true);
     }
 };
 
 window.editSold = function(id) {
+    console.log('Edit sold called with ID:', id);
     const sold = soldList.find(s => s._id === id);
     if (!sold) {
         showToast('Sold entry not found!', true);
         return;
     }
     
-    document.getElementById('soldModalTitle').innerText = 'Edit Sold Entry';
     document.getElementById('editSoldId').value = sold._id;
     document.getElementById('soldName').value = sold.name;
     document.getElementById('soldPrice').value = sold.sold_price.replace('Rs.', '').replace(/,/g, '').trim();
@@ -594,12 +181,12 @@ window.editSold = function(id) {
     document.getElementById('soldBuyer').value = sold.buyer;
     document.getElementById('soldImageUrl').value = sold.image || '';
     
-    const soldPreview = document.getElementById('soldImagePreview');
+    const preview = document.getElementById('soldImagePreview');
     if (sold.image) {
-        soldPreview.src = sold.image;
-        soldPreview.classList.remove('hidden');
+        preview.src = sold.image;
+        preview.classList.remove('hidden');
     } else {
-        soldPreview.classList.add('hidden');
+        preview.classList.add('hidden');
     }
     
     document.getElementById('editSoldModal').classList.remove('hidden');
@@ -607,23 +194,20 @@ window.editSold = function(id) {
 
 window.deleteSold = async function(id) {
     if (!token) {
-        showToast('Please login as admin to delete sold entries', true);
+        showToast('Please login as admin', true);
         return;
     }
-    if (!confirm('Are you sure you want to remove this sold record?')) return;
+    if (!confirm('Delete this sold entry?')) return;
     const response = await apiCall(`/api/sold/${id}`, { method: 'DELETE' });
     if (response && response.ok) {
-        showToast('Sold entry removed successfully');
+        showToast('Sold entry deleted');
         loadSold();
         closeAllModals();
-    } else {
-        showToast('Failed to delete sold entry', true);
     }
 };
 
 // ============= ADD MODAL FUNCTIONS =============
 window.openAddBikeModal = function() {
-    document.getElementById('modalTitle').innerText = 'Add New Bike';
     document.getElementById('editBikeId').value = '';
     document.getElementById('bikeName').value = '';
     document.getElementById('bikePrice').value = '';
@@ -638,7 +222,6 @@ window.openAddBikeModal = function() {
 };
 
 window.openAddSoldModal = function() {
-    document.getElementById('soldModalTitle').innerText = 'Add Sold Entry';
     document.getElementById('editSoldId').value = '';
     document.getElementById('soldName').value = '';
     document.getElementById('soldPrice').value = '';
@@ -663,7 +246,7 @@ document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
     const imageFile = document.getElementById('bikeImageUpload').files[0];
     
     if (!name || !year || !km || !location || !brand) {
-        showToast('Please fill all required fields!', true);
+        showToast('Please fill all fields!', true);
         return;
     }
     
@@ -686,12 +269,9 @@ document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
     
     const response = await apiCall(url, { method, body: formData });
     if (response && response.ok) {
-        showToast(id ? 'Bike updated successfully!' : 'Bike added successfully!');
+        showToast(id ? 'Bike updated!' : 'Bike added!');
         closeAllModals();
         loadBikes();
-    } else if (response) {
-        const error = await response.json();
-        showToast(error.error || 'Failed to save bike', true);
     }
 });
 
@@ -705,7 +285,7 @@ document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
     const imageFile = document.getElementById('soldImageUpload').files[0];
     
     if (!name || !monthYear || !buyer) {
-        showToast('Please fill all required fields!', true);
+        showToast('Please fill all fields!', true);
         return;
     }
     
@@ -729,31 +309,10 @@ document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
         showToast(id ? 'Sold entry updated!' : 'Sold entry added!');
         closeAllModals();
         loadSold();
-    } else if (response) {
-        const error = await response.json();
-        showToast(error.error || 'Failed to save sold entry', true);
     }
 });
 
-document.getElementById('saveSocialLinksBtn')?.addEventListener('click', async () => {
-    const whatsapp_group = document.getElementById('whatsappGroupLink').value;
-    const facebook_page = document.getElementById('facebookPageLink').value;
-    
-    const response = await apiCall('/api/settings/social', {
-        method: 'POST',
-        body: JSON.stringify({ whatsapp_group, facebook_page })
-    });
-    if (response && response.ok) {
-        showToast('Social links updated successfully!');
-        closeAllModals();
-        loadSocialLinks();
-        if (currentPage === 'contact') {
-            window.navigateTo('contact');
-        }
-    }
-});
-
-// ============= PAGE TEMPLATES =============
+// ============= PAGE TEMPLATES (Simplified for Speed) =============
 const templates = {
     home: () => `
         <header class="hero-gradient min-h-[75vh] flex items-center justify-center text-center text-white">
@@ -761,7 +320,7 @@ const templates = {
                 <span class="inline-block bg-blue-600/80 px-4 py-1 rounded-full text-sm font-bold mb-4">#RideTheExtraordinary</span>
                 <h1 class="text-4xl md:text-7xl font-black mb-4">Own Your <span class="text-blue-400">Dream Machine</span></h1>
                 <p class="text-base md:text-2xl text-gray-200 max-w-3xl mx-auto mb-6">Premium new & used motorcycles | Main Street, Kiran, Batticaloa</p>
-                <div class="flex justify-center gap-4 flex-wrap"><button onclick="window.navigateTo('bikes')" class="bg-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Explore Bikes</button><button onclick="window.navigateTo('exchange')" class="bg-transparent border-2 border-white px-6 py-3 rounded-xl font-bold hover:bg-green-600 transition">Sell Your Bike</button></div>
+                <div class="flex justify-center gap-4 flex-wrap"><button onclick="window.navigateTo('bikes')" class="bg-blue-600 px-6 py-3 rounded-xl font-bold">Explore Bikes</button><button onclick="window.navigateTo('exchange')" class="bg-transparent border-2 border-white px-6 py-3 rounded-xl font-bold">Sell Your Bike</button></div>
                 <div class="grid grid-cols-3 gap-4 mt-10 max-w-3xl mx-auto"><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">500+</div><div class="text-xs">Bikes Sold</div></div><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">100%</div><div class="text-xs">Trust</div></div><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">24/7</div><div class="text-xs">Support</div></div></div>
             </div>
         </header>
@@ -772,9 +331,9 @@ const templates = {
         <div class="container mx-auto px-4 py-8">
             <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
                 <div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details</p></div>
-                ${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}
+                ${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}
             </div>
-            <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price Low-High</button></div>
+            <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white">Price Low-High</button></div>
             <div id="bikesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     `,
@@ -783,7 +342,7 @@ const templates = {
         <div class="container mx-auto px-4 py-8">
             <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
                 <div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Click on any sold bike to view details</p></div>
-                ${token ? `<button onclick="window.openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}
+                ${token ? `<button onclick="window.openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}
             </div>
             <div id="soldGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
@@ -796,10 +355,9 @@ const templates = {
             <p class="text-xl text-gray-700 mt-3">Best Exchange Offers | Free Valuation | Instant Cash</p>
             <p class="text-lg text-gray-600 mt-2">Call or WhatsApp: <strong class="text-blue-600">075 350 3111</strong></p>
             <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition"><i class="fab fa-whatsapp text-green-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">WhatsApp Valuation</h2><p class="text-gray-600 mt-2">Send bike details & photos for instant quote</p><a href="https://wa.me/94753503111" class="inline-block mt-6 bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-bold transition"><i class="fab fa-whatsapp mr-2"></i> Start Chat</a></div>
-                <div class="bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition"><i class="fas fa-phone-alt text-blue-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">Call for Exchange</h2><p class="text-gray-600 mt-2">Upgrade your bike with best buy-back offer</p><a href="tel:0753503111" class="inline-block mt-6 bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-full font-bold transition"><i class="fas fa-phone mr-2"></i> Call Now</a></div>
+                <div class="bg-white p-8 rounded-2xl shadow-xl"><i class="fab fa-whatsapp text-green-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">WhatsApp Valuation</h2><a href="https://wa.me/94753503111" class="inline-block mt-6 bg-green-600 text-white px-8 py-3 rounded-full">Start Chat</a></div>
+                <div class="bg-white p-8 rounded-2xl shadow-xl"><i class="fas fa-phone-alt text-blue-600 text-5xl"></i><h2 class="text-2xl font-bold mt-4">Call for Exchange</h2><a href="tel:0753503111" class="inline-block mt-6 bg-black text-white px-8 py-3 rounded-full">Call Now</a></div>
             </div>
-            <div class="mt-16 bg-blue-50 rounded-2xl p-6 text-left"><h3 class="text-xl font-bold mb-3">📋 How It Works</h3><div class="grid md:grid-cols-3 gap-4 text-sm"><div class="flex gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span> Share bike details & photos</div><div class="flex gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span> Get instant valuation</div><div class="flex gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">3</span> Cash payment or exchange</div></div></div>
         </div>
     `,
     
@@ -812,17 +370,13 @@ const templates = {
                         <div class="flex items-start gap-4"><i class="fas fa-map-marker-alt text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Address</p><p class="text-gray-600">Main Street, Kiran, Batticaloa, Sri Lanka</p></div></div>
                         <div class="flex items-start gap-4"><i class="fas fa-phone-alt text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Phone / WhatsApp</p><p class="text-gray-600">075 350 3111</p></div></div>
                         <div class="flex items-start gap-4"><i class="fas fa-clock text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Business Hours</p><p class="text-gray-600">Monday - Sunday: 9:00 AM - 8:00 PM</p></div></div>
-                        <div class="flex items-start gap-4"><i class="fas fa-envelope text-blue-600 text-2xl mt-1"></i><div><p class="font-semibold">Email</p><p class="text-gray-600">info@priyanmotors.lk</p></div></div>
                     </div>
                     <div class="mt-8 flex gap-4 flex-wrap">
-                        <a href="https://wa.me/94753503111" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-whatsapp mr-2"></i> WhatsApp Us</a>
-                        <a href="${socialLinks.whatsapp_group || 'https://chat.whatsapp.com/yourinvitecode'}" target="_blank" class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-whatsapp mr-2"></i> Join WhatsApp Group</a>
-                        <a href="${socialLinks.facebook_page || 'https://facebook.com/yourpage'}" target="_blank" class="bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fab fa-facebook mr-2"></i> Follow on Facebook</a>
-                        <a href="tel:0753503111" class="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition"><i class="fas fa-phone mr-2"></i> Call Now</a>
+                        <a href="https://wa.me/94753503111" class="bg-green-600 text-white px-6 py-3 rounded-xl">WhatsApp Us</a>
+                        <a href="tel:0753503111" class="bg-black text-white px-6 py-3 rounded-xl">Call Now</a>
                     </div>
-                    ${token ? `<button id="editSocialLinksBtn" class="mt-6 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm transition"><i class="fas fa-edit"></i> Edit Social Links (Admin)</button>` : ''}
                 </div>
-                <div class="bg-gray-200 rounded-2xl h-80 flex flex-col items-center justify-center"><i class="fas fa-map-marked-alt text-4xl text-gray-500 mb-3"></i><p class="text-gray-600 text-center px-4">📍 Main Street, Kiran<br>Batticaloa, Sri Lanka</p><p class="text-xs text-gray-500 mt-2">Google Map location available</p></div>
+                <div class="bg-gray-200 rounded-2xl h-80 flex flex-col items-center justify-center"><i class="fas fa-map-marked-alt text-4xl text-gray-500 mb-3"></i><p class="text-gray-600 text-center">📍 Main Street, Kiran, Batticaloa</p></div>
             </div>
         </div>
     `
@@ -830,7 +384,6 @@ const templates = {
 
 // ============= NAVIGATION =============
 window.navigateTo = function(page) {
-    console.log('Navigating to:', page);
     currentPage = page;
     
     document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
@@ -848,18 +401,6 @@ window.navigateTo = function(page) {
     
     if (page === 'bikes') loadBikes();
     if (page === 'sold') loadSold();
-    if (page === 'contact') {
-        loadSocialLinks();
-        setTimeout(() => {
-            const editBtn = document.getElementById('editSocialLinksBtn');
-            if (editBtn) {
-                editBtn.onclick = () => {
-                    loadSocialLinksToModal();
-                    document.getElementById('socialLinksModal').classList.remove('hidden');
-                };
-            }
-        }, 100);
-    }
     
     window.scrollTo(0, 0);
     const mobileTabs = document.getElementById('mobileTabs');
@@ -883,32 +424,16 @@ async function loadSold() {
     }
 }
 
-async function loadSocialLinks() {
-    const response = await apiCall('/api/settings/social');
-    if (response && response.ok) {
-        socialLinks = await response.json();
-    }
-}
-
-async function loadSocialLinksToModal() {
-    const response = await apiCall('/api/settings/social');
-    if (response && response.ok) {
-        const links = await response.json();
-        document.getElementById('whatsappGroupLink').value = links.whatsapp_group || '';
-        document.getElementById('facebookPageLink').value = links.facebook_page || '';
-    }
-}
-
 function renderBikes() {
     const grid = document.getElementById('bikesGrid');
     if (!grid) return;
     if (bikes.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-12"><i class="fas fa-motorcycle text-4xl text-gray-300 mb-3 block"></i><p class="text-gray-500">No bikes available. Admin can add new bikes.</p></div>';
+        grid.innerHTML = '<div class="col-span-full text-center py-12">No bikes available.</div>';
         return;
     }
     grid.innerHTML = bikes.map(bike => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border hover:shadow-lg transition cursor-pointer" onclick="window.showBikeDetails('${bike._id}')">
-            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border cursor-pointer" onclick="window.showBikeDetails('${bike._id}')">
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
             <div class="p-4">
                 <h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3>
                 <div class="text-blue-600 font-bold text-xl">${bike.price}</div>
@@ -918,10 +443,9 @@ function renderBikes() {
                     <span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span>
                     <span><i class="fas fa-tag"></i> ${bike.brand}</span>
                 </div>
-                <div class="mt-3 flex gap-2">
-                    <span class="text-xs text-gray-400">🔍 Click for details</span>
-                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" target="_blank" class="text-xs text-green-600 hover:text-green-800" onclick="event.stopPropagation()"><i class="fab fa-whatsapp"></i> Inquire</a>
-                    ${token ? `<button onclick="event.stopPropagation(); window.markAsSold('${bike._id}')" class="text-xs text-purple-600 hover:text-purple-800"><i class="fas fa-tag"></i> Mark Sold</button>` : ''}
+                <div class="mt-3 flex gap-2 justify-between items-center">
+                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="text-xs text-green-600" onclick="event.stopPropagation()"><i class="fab fa-whatsapp"></i> Inquire</a>
+                    ${token ? `<button onclick="event.stopPropagation(); window.editBike('${bike._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); window.deleteBike('${bike._id}')" class="text-xs text-red-600">🗑️ Delete</button><button onclick="event.stopPropagation(); window.markAsSold('${bike._id}')" class="text-xs text-purple-600">🏷️ Mark Sold</button>` : ''}
                 </div>
             </div>
         </div>
@@ -932,102 +456,93 @@ function renderSold() {
     const grid = document.getElementById('soldGrid');
     if (!grid) return;
     if (soldList.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-12"><i class="fas fa-check-circle text-4xl text-gray-300 mb-3 block"></i><p class="text-gray-500">No sold records yet.</p></div>';
+        grid.innerHTML = '<div class="col-span-full text-center py-12">No sold records.</div>';
         return;
     }
     grid.innerHTML = soldList.map(s => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md sold-card border-l-8 border-green-500 hover:shadow-lg transition cursor-pointer" onclick="window.showSoldDetails('${s._id}')">
-            <div class="p-4">
-                <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
-                <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
-                <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-                ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); window.showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
-                <div class="mt-2 text-xs text-gray-400">🔍 Click for details</div>
-            </div>
+        <div class="bg-white rounded-2xl shadow-md sold-card border-l-8 border-green-500 cursor-pointer p-4" onclick="window.showSoldDetails('${s._id}')">
+            <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
+            <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
+            <p class="text-sm text-gray-600"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
+            ${token ? `<div class="flex gap-2 mt-3"><button onclick="event.stopPropagation(); window.editSold('${s._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); window.deleteSold('${s._id}')" class="text-xs text-red-600">🗑️ Delete</button></div>` : ''}
         </div>
     `).join('');
 }
 
-// ============= SETTINGS & AUTHENTICATION =============
-document.getElementById('settingsMenuItem')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (!token) {
-        showToast('Please login first to access settings', true);
-        return;
-    }
-    document.getElementById('settingsModal').classList.remove('hidden');
-});
-
-document.getElementById('changePasswordMenuItem')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (!token) {
-        showToast('Please login first', true);
-        return;
-    }
-    document.getElementById('changePasswordModal').classList.remove('hidden');
-});
-
-document.getElementById('changeUsernameMenuItem')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (!token) {
-        showToast('Please login first', true);
-        return;
-    }
-    document.getElementById('changeUsernameModal').classList.remove('hidden');
-});
-
-document.getElementById('savePasswordBtn')?.addEventListener('click', async () => {
-    const currentPassword = document.getElementById('currentPassword').value;
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
+// ============= BIKE DETAILS MODAL (Simplified) =============
+window.showBikeDetails = function(bikeId) {
+    const bike = bikes.find(b => b._id === bikeId);
+    if (!bike) return;
     
-    if (newPassword !== confirmPassword) {
-        document.getElementById('pwdError').innerText = 'New passwords do not match';
-        return;
-    }
-    if (newPassword.length < 4) {
-        document.getElementById('pwdError').innerText = 'Password must be at least 4 characters';
-        return;
-    }
+    const modalHtml = `
+        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
+                <button onclick="document.getElementById('bikeDetailsModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button>
+            </div>
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4 cursor-pointer" onclick="window.showImagePreview('${bike.image}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold">${bike.price}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Year</p><p class="text-lg font-semibold">${bike.year}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📊 Kilometers</p><p class="text-lg font-semibold">${bike.km}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="flex-1 bg-green-600 text-white text-center py-2 rounded-lg">Inquire on WhatsApp</a>
+                ${token ? `<button onclick="window.editBike('${bike._id}'); document.getElementById('bikeDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit</button>` : ''}
+                <button onclick="document.getElementById('bikeDetailsModal').classList.add('hidden')" class="flex-1 bg-gray-300 py-2 rounded-lg">Close</button>
+            </div>
+        </div>
+    `;
     
-    const response = await apiCall('/api/change-password', {
-        method: 'POST',
-        body: JSON.stringify({ currentPassword, newPassword })
-    });
-    if (response && response.ok) {
-        showToast('Password changed successfully! Please login again.');
-        closeAllModals();
-        logout();
-    } else {
-        const error = await response.json();
-        document.getElementById('pwdError').innerText = error.error || 'Failed to change password';
+    let modal = document.getElementById('bikeDetailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'bikeDetailsModal';
+        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        document.body.appendChild(modal);
     }
-});
+    modal.innerHTML = modalHtml;
+    modal.classList.remove('hidden');
+};
 
-document.getElementById('saveUsernameBtn')?.addEventListener('click', async () => {
-    const newUsername = document.getElementById('newUsername').value;
-    if (!newUsername) {
-        document.getElementById('usernameError').innerText = 'Username cannot be empty';
-        return;
-    }
+// ============= SOLD DETAILS MODAL =============
+window.showSoldDetails = function(soldId) {
+    const sold = soldList.find(s => s._id === soldId);
+    if (!sold) return;
     
-    const response = await apiCall('/api/change-username', {
-        method: 'POST',
-        body: JSON.stringify({ newUsername })
-    });
-    if (response && response.ok) {
-        const data = await response.json();
-        token = data.token;
-        localStorage.setItem('token', token);
-        showToast('Username changed successfully! Please login again.');
-        closeAllModals();
-        logout();
-    } else {
-        const error = await response.json();
-        document.getElementById('usernameError').innerText = error.error || 'Username already exists';
+    const modalHtml = `
+        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
+                <button onclick="document.getElementById('soldDetailsModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button>
+            </div>
+            ${sold.image ? `<img src="${sold.image}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.style.display='none'">` : ''}
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Sold Price</p><p class="text-xl font-bold text-green-600">${sold.sold_price}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">👤 Buyer</p><p class="text-lg font-semibold">${escapeHtml(sold.buyer)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Sold Date</p><p class="text-lg font-semibold">${sold.month_year}</p></div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                ${token ? `<button onclick="window.editSold('${sold._id}'); document.getElementById('soldDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit</button>` : ''}
+                <button onclick="document.getElementById('soldDetailsModal').classList.add('hidden')" class="flex-1 bg-gray-300 py-2 rounded-lg">Close</button>
+            </div>
+        </div>
+    `;
+    
+    let modal = document.getElementById('soldDetailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'soldDetailsModal';
+        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        document.body.appendChild(modal);
     }
-});
+    modal.innerHTML = modalHtml;
+    modal.classList.remove('hidden');
+};
 
+// ============= AUTHENTICATION =============
 async function checkAuth() {
     if (!token) return false;
     const response = await apiCall('/api/verify-token');
@@ -1037,11 +552,10 @@ async function checkAuth() {
             currentUser = await userResponse.json();
         }
         document.getElementById('userStatusText').innerHTML = 'Admin';
-        document.getElementById('dropdownUserName').innerHTML = `${currentUser?.username || 'Admin'} (Admin)`;
+        document.getElementById('dropdownUserName').innerHTML = 'Admin (Edit Mode)';
         document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
         document.getElementById('logoutBtn').classList.remove('hidden');
         document.getElementById('showLoginOption').classList.add('hidden');
-        document.getElementById('editLogoMenuItem').classList.remove('hidden');
         return true;
     }
     return false;
@@ -1055,20 +569,12 @@ async function login(username, password) {
     if (response && response.ok) {
         const data = await response.json();
         token = data.token;
-        currentUser = data.user;
         localStorage.setItem('token', token);
-        
-        const userResponse = await apiCall('/api/me');
-        if (userResponse && userResponse.ok) {
-            currentUser = await userResponse.json();
-        }
-        
         document.getElementById('userStatusText').innerHTML = 'Admin';
-        document.getElementById('dropdownUserName').innerHTML = `${currentUser?.username || 'Admin'} (Admin)`;
+        document.getElementById('dropdownUserName').innerHTML = 'Admin (Edit Mode)';
         document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
         document.getElementById('logoutBtn').classList.remove('hidden');
         document.getElementById('showLoginOption').classList.add('hidden');
-        document.getElementById('editLogoMenuItem').classList.remove('hidden');
         closeAllModals();
         showToast('Login successful!');
         if (currentPage === 'bikes') loadBikes();
@@ -1082,24 +588,37 @@ async function login(username, password) {
 
 function logout() {
     token = null;
-    currentUser = null;
     localStorage.removeItem('token');
     document.getElementById('userStatusText').innerHTML = 'Guest';
     document.getElementById('dropdownUserName').innerHTML = 'Guest User';
     document.getElementById('dropdownUserRole').innerHTML = 'View Only Mode';
     document.getElementById('logoutBtn').classList.add('hidden');
     document.getElementById('showLoginOption').classList.remove('hidden');
-    document.getElementById('editLogoMenuItem').classList.add('hidden');
-    showToast('Logged out successfully');
+    showToast('Logged out');
     if (currentPage === 'bikes') loadBikes();
     if (currentPage === 'sold') loadSold();
 }
 
+// ============= FILTER HANDLERS =============
+document.addEventListener('click', (e) => {
+    if (e.target.dataset?.filter) {
+        const filter = e.target.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.classList.remove('active-filter', 'bg-blue-600', 'text-white');
+            btn.classList.add('bg-white', 'text-gray-700');
+        });
+        e.target.classList.add('active-filter', 'bg-blue-600', 'text-white');
+        
+        if (filter === 'all') bikes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        else if (filter === 'price-desc') bikes.sort((a, b) => b.price_num - a.price_num);
+        else if (filter === 'price-asc') bikes.sort((a, b) => a.price_num - b.price_num);
+        renderBikes();
+    }
+});
+
 // ============= EVENT LISTENERS =============
 document.getElementById('doLoginBtn')?.addEventListener('click', () => {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
-    login(username, password);
+    login(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value);
 });
 
 document.getElementById('showLoginOption')?.addEventListener('click', (e) => {
@@ -1139,12 +658,8 @@ document.getElementById('closeModalBtn')?.addEventListener('click', closeAllModa
 document.getElementById('closeSoldModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeLogoModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeLoginModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closeSettingsModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closePasswordModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closeUsernameModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closeSocialLinksModalBtn')?.addEventListener('click', closeAllModals);
 
-// Image preview for bike
+// Image upload preview
 document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -1158,7 +673,6 @@ document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
     }
 });
 
-// Image preview for sold bike
 document.getElementById('soldImageUpload')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -1172,23 +686,6 @@ document.getElementById('soldImageUpload')?.addEventListener('change', (e) => {
     }
 });
 
-// Filter handlers
-document.addEventListener('click', (e) => {
-    if (e.target.dataset?.filter) {
-        const filter = e.target.dataset.filter;
-        document.querySelectorAll('[data-filter]').forEach(btn => {
-            btn.classList.remove('active-filter', 'bg-blue-600', 'text-white');
-            btn.classList.add('bg-white', 'text-gray-700');
-        });
-        e.target.classList.add('active-filter', 'bg-blue-600', 'text-white');
-        
-        if (filter === 'all') bikes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        else if (filter === 'price-desc') bikes.sort((a, b) => b.price_num - a.price_num);
-        else if (filter === 'price-asc') bikes.sort((a, b) => a.price_num - b.price_num);
-        renderBikes();
-    }
-});
-
 // Logo handlers
 document.getElementById('clickableLogo')?.addEventListener('click', () => {
     if (token) {
@@ -1196,7 +693,7 @@ document.getElementById('clickableLogo')?.addEventListener('click', () => {
         document.getElementById('logoUrlInput').value = document.getElementById('siteLogo').src;
         document.getElementById('editLogoModal').classList.remove('hidden');
     } else {
-        showToast('Please login as admin to change logo', true);
+        showToast('Please login as admin', true);
         document.getElementById('loginModal').classList.remove('hidden');
     }
 });
@@ -1212,9 +709,8 @@ document.getElementById('saveLogoBtn')?.addEventListener('click', async () => {
     if (response && response.ok) {
         const data = await response.json();
         document.getElementById('siteLogo').src = data.logoUrl;
-        showToast('Logo updated successfully!');
+        showToast('Logo updated!');
         closeAllModals();
-        loadLogo();
     }
 });
 
@@ -1234,30 +730,19 @@ async function loadLogo() {
     const response = await apiCall('/api/settings/logo');
     if (response && response.ok) {
         const data = await response.json();
-        if (data.logoUrl) {
-            document.getElementById('siteLogo').src = data.logoUrl;
-        }
+        if (data.logoUrl) document.getElementById('siteLogo').src = data.logoUrl;
     }
 }
 
 // ============= INITIALIZE =============
 async function init() {
-    console.log('🚀 Starting app...');
-    
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
         token = savedToken;
         await checkAuth();
     }
-    
     await loadLogo();
-    await loadSocialLinks();
     window.navigateTo('home');
 }
-
-// Add CSS animation
-const style = document.createElement('style');
-style.textContent = `@keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } } .toast { animation: fadeInOut 3s ease; }`;
-document.head.appendChild(style);
 
 init();
