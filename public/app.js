@@ -1,4 +1,4 @@
-// app.js - Complete Working Version - FINAL FIX
+// app.js - Complete Working Frontend
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -6,87 +6,8 @@ let currentPage = 'home';
 let bikes = [];
 let soldList = [];
 let socialLinks = { whatsapp_group: '', facebook_page: '' };
-let comments = {};
-let feedbacks = {};
-
-// Load comments and feedbacks from localStorage
-function loadComments() {
-    const saved = localStorage.getItem('bikeComments');
-    if (saved) {
-        comments = JSON.parse(saved);
-    }
-}
-
-function saveComments() {
-    localStorage.setItem('bikeComments', JSON.stringify(comments));
-}
-
-function loadFeedbacks() {
-    const saved = localStorage.getItem('soldFeedbacks');
-    if (saved) {
-        feedbacks = JSON.parse(saved);
-    }
-}
-
-function saveFeedbacks() {
-    localStorage.setItem('soldFeedbacks', JSON.stringify(feedbacks));
-}
-
-function addComment(bikeId, commentText, userName) {
-    if (!commentText.trim()) return;
-    if (!comments[bikeId]) comments[bikeId] = [];
-    comments[bikeId].push({
-        id: Date.now(),
-        text: commentText,
-        user: userName,
-        date: new Date().toLocaleString(),
-        replies: []
-    });
-    saveComments();
-    showBikeDetails(bikeId);
-}
-
-function addReply(bikeId, commentId, replyText, userName) {
-    if (!replyText.trim()) return;
-    const comment = comments[bikeId]?.find(c => c.id === commentId);
-    if (comment) {
-        if (!comment.replies) comment.replies = [];
-        comment.replies.push({
-            id: Date.now(),
-            text: replyText,
-            user: userName,
-            date: new Date().toLocaleString()
-        });
-        saveComments();
-        showBikeDetails(bikeId);
-    }
-}
-
-function deleteComment(bikeId, commentId) {
-    if (!token) {
-        showToast('Please login as admin to delete comments', true);
-        return;
-    }
-    if (confirm('Are you sure you want to delete this comment?')) {
-        comments[bikeId] = comments[bikeId].filter(c => c.id !== commentId);
-        saveComments();
-        showBikeDetails(bikeId);
-        showToast('Comment deleted successfully');
-    }
-}
-
-function addFeedback(soldId, rating, comment, userName) {
-    if (!feedbacks[soldId]) feedbacks[soldId] = [];
-    feedbacks[soldId].push({
-        id: Date.now(),
-        rating: rating,
-        comment: comment,
-        user: userName,
-        date: new Date().toLocaleString()
-    });
-    saveFeedbacks();
-    showSoldDetails(soldId);
-}
+let commentsCache = {};
+let feedbacksCache = {};
 
 // ============= HELPER FUNCTIONS =============
 function showToast(message, isError = false) {
@@ -148,6 +69,88 @@ async function apiCall(endpoint, options = {}) {
         showToast('Network error. Please try again.', true);
         return null;
     }
+}
+
+// ============= COMMENTS API =============
+async function loadComments(bikeId) {
+    const response = await apiCall(`/api/comments/${bikeId}`);
+    if (response && response.ok) {
+        commentsCache[bikeId] = await response.json();
+    }
+    return commentsCache[bikeId] || [];
+}
+
+async function addComment(bikeId, text, userName) {
+    const response = await apiCall('/api/comments', {
+        method: 'POST',
+        body: JSON.stringify({ bikeId, text, user: userName })
+    });
+    if (response && response.ok) {
+        showToast('Comment added!');
+        return true;
+    }
+    return false;
+}
+
+async function addReply(commentId, text, userName) {
+    const response = await apiCall(`/api/comments/${commentId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ text, user: userName })
+    });
+    if (response && response.ok) {
+        showToast('Reply added!');
+        return true;
+    }
+    return false;
+}
+
+async function deleteComment(commentId) {
+    if (!token) {
+        showToast('Please login as admin to delete comments', true);
+        return false;
+    }
+    if (!confirm('Delete this comment?')) return false;
+    const response = await apiCall(`/api/comments/${commentId}`, { method: 'DELETE' });
+    if (response && response.ok) {
+        showToast('Comment deleted');
+        return true;
+    }
+    return false;
+}
+
+// ============= FEEDBACK API =============
+async function loadFeedbacks(soldId) {
+    const response = await apiCall(`/api/feedbacks/${soldId}`);
+    if (response && response.ok) {
+        feedbacksCache[soldId] = await response.json();
+    }
+    return feedbacksCache[soldId] || [];
+}
+
+async function addFeedback(soldId, rating, comment, userName) {
+    const response = await apiCall('/api/feedbacks', {
+        method: 'POST',
+        body: JSON.stringify({ soldId, rating, comment, user: userName })
+    });
+    if (response && response.ok) {
+        showToast('Feedback submitted!');
+        return true;
+    }
+    return false;
+}
+
+async function deleteFeedback(feedbackId) {
+    if (!token) {
+        showToast('Please login as admin to delete feedback', true);
+        return false;
+    }
+    if (!confirm('Delete this feedback?')) return false;
+    const response = await apiCall(`/api/feedbacks/${feedbackId}`, { method: 'DELETE' });
+    if (response && response.ok) {
+        showToast('Feedback deleted');
+        return true;
+    }
+    return false;
 }
 
 // ============= IMAGE PREVIEW FUNCTION =============
@@ -217,43 +220,14 @@ window.markAsSold = async function(bikeId) {
     }
 };
 
-// ============= ADD BIKE AND ADD SOLD FUNCTIONS =============
-window.openAddBikeModal = function() {
-    document.getElementById('modalTitle').innerText = 'Add New Bike';
-    document.getElementById('editBikeId').value = '';
-    document.getElementById('bikeName').value = '';
-    document.getElementById('bikePrice').value = '';
-    document.getElementById('bikeYear').value = '';
-    document.getElementById('bikeKm').value = '';
-    document.getElementById('bikeLocation').value = '';
-    document.getElementById('bikeBrand').value = '';
-    document.getElementById('bikeImageUrl').value = '';
-    document.getElementById('bikeImageUpload').value = '';
-    document.getElementById('bikeImagePreview').classList.add('hidden');
-    document.getElementById('editBikeModal').classList.remove('hidden');
-};
-
-window.openAddSoldModal = function() {
-    document.getElementById('soldModalTitle').innerText = 'Add Sold Entry';
-    document.getElementById('editSoldId').value = '';
-    document.getElementById('soldName').value = '';
-    document.getElementById('soldPrice').value = '';
-    document.getElementById('soldMonthYear').value = '';
-    document.getElementById('soldBuyer').value = '';
-    document.getElementById('soldImageUrl').value = '';
-    document.getElementById('soldImageUpload').value = '';
-    document.getElementById('soldImagePreview').classList.add('hidden');
-    document.getElementById('editSoldModal').classList.remove('hidden');
-};
-
 // ============= DETAILS MODAL FUNCTIONS =============
-window.showBikeDetails = function(bikeId) {
+window.showBikeDetails = async function(bikeId) {
     const bike = bikes.find(b => b._id === bikeId);
     if (!bike) return;
     
-    const bikeComments = comments[bikeId] || [];
+    const comments = await loadComments(bikeId);
     
-    const commentsHtml = bikeComments.map(comment => `
+    const commentsHtml = comments.map(comment => `
         <div class="bg-gray-50 rounded-lg p-3 mb-3">
             <div class="flex justify-between items-start">
                 <div>
@@ -261,12 +235,12 @@ window.showBikeDetails = function(bikeId) {
                     <span class="text-xs text-gray-400 ml-2">${comment.date}</span>
                 </div>
                 <div>
-                    <button onclick="window.showReplyForm('${bikeId}', ${comment.id})" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
-                    ${token ? `<button onclick="window.deleteComment('${bikeId}', ${comment.id})" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                    <button onclick="window.showReplyForm('${comment._id}')" class="text-xs text-blue-500 hover:text-blue-700 mr-2">Reply</button>
+                    ${token ? `<button onclick="window.deleteAndRefreshComment('${comment._id}', '${bikeId}')" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash"></i> Delete</button>` : ''}
                 </div>
             </div>
             <p class="text-gray-700 mt-1">${escapeHtml(comment.text)}</p>
-            <div id="replies-${comment.id}" class="ml-4 mt-2">
+            <div id="replies-${comment._id}" class="ml-4 mt-2">
                 ${(comment.replies || []).map(reply => `
                     <div class="bg-gray-100 rounded-lg p-2 mb-2">
                         <div><span class="font-semibold text-green-600">${escapeHtml(reply.user)}</span> <span class="text-xs text-gray-400">${reply.date}</span></div>
@@ -274,10 +248,10 @@ window.showBikeDetails = function(bikeId) {
                     </div>
                 `).join('')}
             </div>
-            <div id="reply-form-${comment.id}" class="hidden mt-2">
+            <div id="reply-form-${comment._id}" class="hidden mt-2">
                 <div class="flex gap-2">
-                    <input type="text" id="reply-input-${comment.id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
-                    <button onclick="window.submitReply('${bikeId}', ${comment.id})" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
+                    <input type="text" id="reply-input-${comment._id}" placeholder="Write a reply..." class="flex-1 border rounded-lg px-3 py-1 text-sm">
+                    <button onclick="window.submitReplyAndRefresh('${comment._id}', '${bikeId}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm">Reply</button>
                 </div>
             </div>
         </div>
@@ -304,16 +278,15 @@ window.showBikeDetails = function(bikeId) {
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Added On</p><p class="text-lg font-semibold">${new Date(bike.created_at).toLocaleDateString()}</p></div>
             </div>
             
-            <!-- Comments Section -->
             <div class="mt-6 border-t pt-4">
                 <h3 class="text-lg font-bold mb-3">💬 Comments & Questions</h3>
                 <div class="mb-4">
                     <div class="flex gap-2">
-                        <input type="text" id="comment-input-${bikeId}" placeholder="Write a comment or ask a question..." class="flex-1 border rounded-lg px-4 py-2">
-                        <button onclick="window.submitComment('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Post</button>
+                        <input type="text" id="comment-input" placeholder="Write a comment or ask a question..." class="flex-1 border rounded-lg px-4 py-2">
+                        <button onclick="window.submitCommentAndRefresh('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Post</button>
                     </div>
                 </div>
-                <div id="comments-list-${bikeId}" class="max-h-60 overflow-y-auto">
+                <div id="comments-list" class="max-h-60 overflow-y-auto">
                     ${commentsHtml || '<p class="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>'}
                 </div>
             </div>
@@ -342,49 +315,59 @@ window.showBikeDetails = function(bikeId) {
     modal.style.display = 'flex';
 };
 
-window.submitComment = function(bikeId) {
-    const input = document.getElementById(`comment-input-${bikeId}`);
+window.submitCommentAndRefresh = async function(bikeId) {
+    const input = document.getElementById('comment-input');
     const commentText = input.value;
     if (!commentText.trim()) return;
     
     const userName = token && currentUser ? currentUser.username : 'Customer';
-    addComment(bikeId, commentText, userName);
+    await addComment(bikeId, commentText, userName);
     input.value = '';
+    await showBikeDetails(bikeId);
 };
 
-window.showReplyForm = function(bikeId, commentId) {
+window.showReplyForm = function(commentId) {
     const form = document.getElementById(`reply-form-${commentId}`);
     if (form) form.classList.toggle('hidden');
 };
 
-window.submitReply = function(bikeId, commentId) {
+window.submitReplyAndRefresh = async function(commentId, bikeId) {
     const input = document.getElementById(`reply-input-${commentId}`);
     const replyText = input.value;
     if (!replyText.trim()) return;
     
     const userName = token && currentUser ? currentUser.username : 'Admin';
-    addReply(bikeId, commentId, replyText, userName);
+    await addReply(commentId, replyText, userName);
     input.value = '';
     document.getElementById(`reply-form-${commentId}`).classList.add('hidden');
+    await showBikeDetails(bikeId);
 };
 
-window.deleteComment = deleteComment;
+window.deleteAndRefreshComment = async function(commentId, bikeId) {
+    const success = await deleteComment(commentId);
+    if (success) {
+        await showBikeDetails(bikeId);
+    }
+};
 
 // ============= SOLD DETAILS WITH FEEDBACK =============
-window.showSoldDetails = function(soldId) {
+window.showSoldDetails = async function(soldId) {
     const sold = soldList.find(s => s._id === soldId);
     if (!sold) return;
     
-    const soldFeedbacks = feedbacks[soldId] || [];
+    const feedbacks = await loadFeedbacks(soldId);
     
-    const feedbacksHtml = soldFeedbacks.map(fb => `
+    const feedbacksHtml = feedbacks.map(fb => `
         <div class="bg-gray-50 rounded-lg p-3 mb-3">
-            <div class="flex items-center gap-2 mb-1">
-                <div class="flex text-yellow-500">
-                    ${'★'.repeat(fb.rating)}${'☆'.repeat(5 - fb.rating)}
+            <div class="flex justify-between items-start">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="flex text-yellow-500">
+                        ${'★'.repeat(fb.rating)}${'☆'.repeat(5 - fb.rating)}
+                    </div>
+                    <span class="font-semibold text-blue-600">${escapeHtml(fb.user)}</span>
+                    <span class="text-xs text-gray-400">${fb.date}</span>
                 </div>
-                <span class="font-semibold text-blue-600">${escapeHtml(fb.user)}</span>
-                <span class="text-xs text-gray-400">${fb.date}</span>
+                ${token ? `<button onclick="window.deleteAndRefreshFeedback('${fb._id}', '${soldId}')" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash"></i> Delete</button>` : ''}
             </div>
             <p class="text-gray-700">${escapeHtml(fb.comment)}</p>
         </div>
@@ -411,21 +394,20 @@ window.showSoldDetails = function(soldId) {
                 <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Recorded On</p><p class="text-lg font-semibold">${new Date(sold.created_at).toLocaleDateString()}</p></div>
             </div>
             
-            <!-- Customer Feedback Section -->
             <div class="mt-6 border-t pt-4">
                 <h3 class="text-lg font-bold mb-3">⭐ Customer Feedback</h3>
                 <div class="mb-4">
                     <div class="mb-2">
                         <p class="text-sm text-gray-600 mb-2">Rate your experience:</p>
-                        <div class="flex gap-1 mb-3" id="rating-stars-${soldId}">
-                            ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer hover:text-yellow-500" data-rating="${i}" onclick="window.setRating('${soldId}', ${i})"></i>`).join('')}
+                        <div class="flex gap-1 mb-3" id="rating-stars">
+                            ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer hover:text-yellow-500" data-rating="${i}" onclick="window.setRating(${i})"></i>`).join('')}
                         </div>
-                        <input type="hidden" id="selected-rating-${soldId}" value="0">
-                        <textarea id="feedback-comment-${soldId}" placeholder="Share your experience with this purchase..." class="w-full border rounded-lg px-4 py-2 mb-2" rows="2"></textarea>
-                        <button onclick="window.submitFeedback('${soldId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Submit Feedback</button>
+                        <input type="hidden" id="selected-rating" value="0">
+                        <textarea id="feedback-comment" placeholder="Share your experience with this purchase..." class="w-full border rounded-lg px-4 py-2 mb-2" rows="2"></textarea>
+                        <button onclick="window.submitFeedbackAndRefresh('${soldId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Submit Feedback</button>
                     </div>
                 </div>
-                <div id="feedbacks-list-${soldId}" class="max-h-60 overflow-y-auto">
+                <div id="feedbacks-list" class="max-h-60 overflow-y-auto">
                     ${feedbacksHtml || '<p class="text-gray-500 text-center py-4">No feedback yet. Be the first to share your experience!</p>'}
                 </div>
             </div>
@@ -452,10 +434,12 @@ window.showSoldDetails = function(soldId) {
     modal.style.display = 'flex';
 };
 
-window.setRating = function(soldId, rating) {
-    document.getElementById(`selected-rating-${soldId}`).value = rating;
+let currentRating = 0;
+window.setRating = function(rating) {
+    currentRating = rating;
+    document.getElementById('selected-rating').value = rating;
     for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars-${soldId} i[data-rating="${i}"]`);
+        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
         if (star) {
             if (i <= rating) {
                 star.classList.remove('text-gray-300');
@@ -468,9 +452,9 @@ window.setRating = function(soldId, rating) {
     }
 };
 
-window.submitFeedback = function(soldId) {
-    const rating = parseInt(document.getElementById(`selected-rating-${soldId}`).value);
-    const comment = document.getElementById(`feedback-comment-${soldId}`).value;
+window.submitFeedbackAndRefresh = async function(soldId) {
+    const rating = parseInt(document.getElementById('selected-rating').value);
+    const comment = document.getElementById('feedback-comment').value;
     
     if (rating === 0) {
         showToast('Please select a rating!', true);
@@ -482,19 +466,30 @@ window.submitFeedback = function(soldId) {
     }
     
     const userName = token && currentUser ? currentUser.username : 'Customer';
-    addFeedback(soldId, rating, comment, userName);
-    document.getElementById(`selected-rating-${soldId}`).value = 0;
-    document.getElementById(`feedback-comment-${soldId}`).value = '';
+    await addFeedback(soldId, rating, comment, userName);
+    document.getElementById('selected-rating').value = 0;
+    document.getElementById('feedback-comment').value = '';
+    currentRating = 0;
     for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars-${soldId} i[data-rating="${i}"]`);
+        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
         if (star) {
             star.classList.remove('text-yellow-500');
             star.classList.add('text-gray-300');
         }
     }
+    await showSoldDetails(soldId);
 };
 
-// ============= PAGE TEMPLATES WITH BUTTONS =============
+window.deleteAndRefreshFeedback = async function(feedbackId, soldId) {
+    if (!confirm('Delete this feedback?')) return;
+    const response = await apiCall(`/api/feedbacks/${feedbackId}`, { method: 'DELETE' });
+    if (response && response.ok) {
+        showToast('Feedback deleted');
+        await showSoldDetails(soldId);
+    }
+};
+
+// ============= PAGE TEMPLATES =============
 const templates = {
     home: () => `
         <header class="hero-gradient min-h-[75vh] flex items-center justify-center text-center text-white">
@@ -512,7 +507,7 @@ const templates = {
     bikes: () => `
         <div class="container mx-auto px-4 py-8">
             <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
-                <div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details, comment, or inquire</p></div>
+                <div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details</p></div>
                 ${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}
             </div>
             <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price Low-High</button></div>
@@ -523,7 +518,7 @@ const templates = {
     sold: () => `
         <div class="container mx-auto px-4 py-8">
             <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
-                <div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Click on any sold bike to view details and leave feedback</p></div>
+                <div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Click on any sold bike to view details</p></div>
                 ${token ? `<button onclick="window.openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}
             </div>
             <div id="soldGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
@@ -595,8 +590,8 @@ window.navigateTo = function(page) {
             const editBtn = document.getElementById('editSocialLinksBtn');
             if (editBtn) {
                 editBtn.onclick = () => {
-                    document.getElementById('socialLinksModal').classList.remove('hidden');
                     loadSocialLinksToModal();
+                    document.getElementById('socialLinksModal').classList.remove('hidden');
                 };
             }
         }, 100);
@@ -683,7 +678,7 @@ function renderSold() {
                 <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
                 <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
                 ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); window.showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
-                <div class="mt-2 text-xs text-gray-400">🔍 Click for details | ⭐ Leave feedback</div>
+                <div class="mt-2 text-xs text-gray-400">🔍 Click for details</div>
             </div>
         </div>
     `).join('');
@@ -754,6 +749,34 @@ window.deleteSold = async (id) => {
     } else {
         showToast('Failed to delete sold entry', true);
     }
+};
+
+window.openAddBikeModal = function() {
+    document.getElementById('modalTitle').innerText = 'Add New Bike';
+    document.getElementById('editBikeId').value = '';
+    document.getElementById('bikeName').value = '';
+    document.getElementById('bikePrice').value = '';
+    document.getElementById('bikeYear').value = '';
+    document.getElementById('bikeKm').value = '';
+    document.getElementById('bikeLocation').value = '';
+    document.getElementById('bikeBrand').value = '';
+    document.getElementById('bikeImageUrl').value = '';
+    document.getElementById('bikeImageUpload').value = '';
+    document.getElementById('bikeImagePreview').classList.add('hidden');
+    document.getElementById('editBikeModal').classList.remove('hidden');
+};
+
+window.openAddSoldModal = function() {
+    document.getElementById('soldModalTitle').innerText = 'Add Sold Entry';
+    document.getElementById('editSoldId').value = '';
+    document.getElementById('soldName').value = '';
+    document.getElementById('soldPrice').value = '';
+    document.getElementById('soldMonthYear').value = '';
+    document.getElementById('soldBuyer').value = '';
+    document.getElementById('soldImageUrl').value = '';
+    document.getElementById('soldImageUpload').value = '';
+    document.getElementById('soldImagePreview').classList.add('hidden');
+    document.getElementById('editSoldModal').classList.remove('hidden');
 };
 
 // ============= SAVE HANDLERS =============
@@ -1154,9 +1177,6 @@ async function loadLogo() {
 // ============= INITIALIZE =============
 async function init() {
     console.log('🚀 Starting app...');
-    
-    loadComments();
-    loadFeedbacks();
     
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
