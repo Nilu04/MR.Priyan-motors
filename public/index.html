@@ -9,40 +9,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300,400,500,600,700,800,900&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; }
-        body { 
-            display: flex; 
-            flex-direction: column; 
-            min-height: 100vh; 
-            margin: 0;
-        }
-        .main-content { 
-            flex: 1 0 auto; 
-        }
-        footer { 
-            flex-shrink: 0; 
-            background: black; 
-            color: #9ca3af; 
-            text-align: center; 
-            padding: 20px; 
-            margin-top: auto;
-        }
+        body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; }
+        .main-content { flex: 1 0 auto; }
+        footer { flex-shrink: 0; background: black; color: #9ca3af; text-align: center; padding: 20px; margin-top: auto; }
         .hero-gradient { background: linear-gradient(125deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 100%), url('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80'); background-size: cover; background-position: center 35%; }
         .active-page { color: #00BFFF; border-bottom: 3px solid #00BFFF; font-weight: 700; }
         .modal-overlay { background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); }
-        .bike-img, .sold-img { aspect-ratio: 4/3; width: 100%; height: auto; max-height: 200px; object-fit: cover; }
+        .bike-img { aspect-ratio: 4/3; width: 100%; height: auto; max-height: 200px; object-fit: cover; }
         .filter-chip.active-filter { background-color: #00BFFF; color: white; border-color: #00BFFF; }
         @media (max-width: 640px) { .hero-gradient { min-height: 70vh; } }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 50px; z-index: 1000; animation: fadeInOut 3s ease; }
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 50px; z-index: 10000; animation: fadeInOut 3s ease; }
         @keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
         .logo-clickable { cursor: pointer; transition: transform 0.2s, opacity 0.2s; }
         .logo-clickable:hover { transform: scale(1.05); opacity: 0.9; }
         button { cursor: pointer; }
-        .btn-primary { background-color: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; transition: background 0.2s; }
-        .btn-primary:hover { background-color: #1d4ed8; }
-        .btn-danger { background-color: #dc2626; color: white; padding: 8px 16px; border-radius: 8px; transition: background 0.2s; }
-        .btn-danger:hover { background-color: #b91c1c; }
-        .btn-warning { background-color: #eab308; color: white; padding: 8px 16px; border-radius: 8px; transition: background 0.2s; }
-        .btn-warning:hover { background-color: #ca8a04; }
     </style>
 </head>
 <body>
@@ -203,6 +183,16 @@
         <input type="text" id="logoUrlInput" placeholder="Or paste image URL" class="w-full border p-3 rounded-lg mb-3">
         <button id="saveLogoBtn" class="w-full bg-purple-600 text-white py-3 rounded-lg font-bold">Update Logo</button>
         <button id="closeLogoModalBtn" class="w-full mt-2 text-gray-500 py-2">Cancel</button>
+    </div>
+</div>
+
+<div id="socialLinksModal" class="fixed inset-0 z-[200] hidden items-center justify-center modal-overlay p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6">
+        <h3 class="text-xl font-bold mb-4">Update Social Links</h3>
+        <input type="text" id="whatsappGroupLink" placeholder="WhatsApp Group Link" class="w-full border p-3 rounded-lg mb-3">
+        <input type="text" id="facebookPageLink" placeholder="Facebook Page Link" class="w-full border p-3 rounded-lg mb-4">
+        <button id="saveSocialLinksBtn" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Save Social Links</button>
+        <button id="closeSocialLinksModalBtn" class="w-full mt-2 text-gray-500 py-2">Cancel</button>
     </div>
 </div>
 
