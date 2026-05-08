@@ -1,4 +1,4 @@
-// app.js - Simplified Working Version
+// app.js - Complete Working Version
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -6,7 +6,35 @@ let currentPage = 'home';
 let bikes = [];
 let soldList = [];
 
-// API Helper functions
+// ============= HELPER FUNCTIONS =============
+function showToast(message, isError = false) {
+    const toast = document.createElement('div');
+    toast.className = `toast ${isError ? 'bg-red-500' : 'bg-green-500'}`;
+    toast.textContent = message;
+    toast.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; padding: 12px 24px; border-radius: 50px; z-index: 1000; animation: fadeInOut 3s ease; z-index: 9999;';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+function closeAllModals() {
+    const modals = ['loginModal', 'editBikeModal', 'editSoldModal', 'editLogoModal'];
+    modals.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+}
+
+// ============= API CALLS =============
 async function apiCall(endpoint, options = {}) {
     const headers = { ...options.headers };
     
@@ -20,7 +48,7 @@ async function apiCall(endpoint, options = {}) {
     
     try {
         const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401) {
             logout();
             showToast('Session expired. Please login again.');
             return null;
@@ -33,16 +61,7 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
-function showToast(message, isError = false) {
-    const toast = document.createElement('div');
-    toast.className = `toast ${isError ? 'bg-red-500' : 'bg-green-500'}`;
-    toast.textContent = message;
-    toast.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; padding: 12px 24px; border-radius: 50px; z-index: 1000; animation: fadeInOut 3s ease;';
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-// Page Templates
+// ============= PAGE TEMPLATES =============
 const templates = {
     home: () => `
         <header class="hero-gradient min-h-[75vh] flex items-center justify-center text-center text-white">
@@ -50,7 +69,7 @@ const templates = {
                 <span class="inline-block bg-blue-600/80 px-4 py-1 rounded-full text-sm font-bold mb-4">#RideTheExtraordinary</span>
                 <h1 class="text-4xl md:text-7xl font-black mb-4">Own Your <span class="text-blue-400">Dream Machine</span></h1>
                 <p class="text-base md:text-2xl text-gray-200 max-w-3xl mx-auto mb-6">Premium new & used motorcycles | Main Street, Kiran, Batticaloa</p>
-                <div class="flex justify-center gap-4"><button onclick="navigateTo('bikes')" class="bg-blue-600 px-6 py-3 rounded-xl font-bold">Explore Bikes</button><button onclick="navigateTo('exchange')" class="bg-transparent border-2 border-white px-6 py-3 rounded-xl font-bold">Sell Your Bike</button></div>
+                <div class="flex justify-center gap-4"><button onclick="window.navigateTo('bikes')" class="bg-blue-600 px-6 py-3 rounded-xl font-bold cursor-pointer">Explore Bikes</button><button onclick="window.navigateTo('exchange')" class="bg-transparent border-2 border-white px-6 py-3 rounded-xl font-bold cursor-pointer">Sell Your Bike</button></div>
                 <div class="grid grid-cols-3 gap-4 mt-10 max-w-3xl mx-auto"><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">500+</div><div class="text-xs">Bikes Sold</div></div><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">100%</div><div class="text-xs">Trust</div></div><div class="bg-white/10 rounded-2xl p-3"><div class="text-2xl font-black text-blue-400">24/7</div><div class="text-xs">Support</div></div></div>
             </div>
         </header>
@@ -59,7 +78,7 @@ const templates = {
     
     bikes: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Browse our premium collection</p></div>${token ? `<button onclick="openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Browse our premium collection</p></div>${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
             <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price Low-High</button></div>
             <div id="bikesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
@@ -67,7 +86,7 @@ const templates = {
     
     sold: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Sold archive with buyer details and photos</p></div>${token ? `<button onclick="openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Sold archive with buyer details and photos</p></div>${token ? `<button onclick="window.openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
             <div id="soldGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     `,
@@ -101,12 +120,11 @@ const templates = {
     `
 };
 
-// Navigation function - MUST be globally accessible
+// ============= NAVIGATION =============
 window.navigateTo = function(page) {
     console.log('Navigating to:', page);
     currentPage = page;
     
-    // Update active state on nav links
     document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
         if (link.dataset.page === page) {
             link.classList.add('active-page');
@@ -115,15 +133,11 @@ window.navigateTo = function(page) {
         }
     });
     
-    // Render the page content
     const pageContent = document.getElementById('pageContent');
     if (pageContent && templates[page]) {
         pageContent.innerHTML = templates[page]();
-    } else {
-        console.error('Page not found:', page);
     }
     
-    // Load data if needed
     if (page === 'bikes') loadBikes();
     if (page === 'sold') loadSold();
     
@@ -132,6 +146,7 @@ window.navigateTo = function(page) {
     if (mobileTabs) mobileTabs.classList.add('hidden');
 };
 
+// ============= LOAD DATA =============
 async function loadBikes() {
     const response = await apiCall('/api/bikes');
     if (response && response.ok) {
@@ -160,7 +175,7 @@ function renderBikes() {
             <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
             <div class="p-4"><h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3><div class="text-blue-600 font-bold text-xl">${bike.price}</div>
             <div class="grid grid-cols-2 gap-1 text-xs text-gray-500 mt-2"><span><i class="far fa-calendar"></i> ${bike.year}</span><span><i class="fas fa-road"></i> ${bike.km}</span><span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span><span><i class="fas fa-tag"></i> ${bike.brand}</span></div>
-            ${token ? `<div class="flex gap-2 mt-4"><button onclick="editBike(${bike.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="deleteBike(${bike.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" class="mt-4 block bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-xl text-sm transition"><i class="fab fa-whatsapp mr-1"></i> Inquire Now</a>`}
+            ${token ? `<div class="flex gap-2 mt-4"><button onclick="window.editBike(${bike.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="window.deleteBike(${bike.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" class="mt-4 block bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-xl text-sm transition"><i class="fab fa-whatsapp mr-1"></i> Inquire Now</a>`}
             </div>
         </div>
     `).join('');
@@ -178,68 +193,185 @@ function renderSold() {
             <img src="${s.image || 'https://placehold.co/600x400/22C55E/white?text=Sold'}" class="sold-img w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/22C55E/white?text=Sold'">
             <div class="p-4"><h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3><p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
             <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-            ${token ? `<div class="flex gap-3 mt-4"><button onclick="editSold(${s.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="deleteSold(${s.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
+            ${token ? `<div class="flex gap-3 mt-4"><button onclick="window.editSold(${s.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="window.deleteSold(${s.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
             </div>
         </div>
     `).join('');
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
-}
+// ============= CRUD OPERATIONS =============
+window.editBike = (id) => {
+    const bike = bikes.find(b => b.id === id);
+    if (bike) {
+        document.getElementById('modalTitle').innerText = 'Edit Bike';
+        document.getElementById('editBikeId').value = bike.id;
+        document.getElementById('bikeName').value = bike.name;
+        document.getElementById('bikePrice').value = bike.price.replace('Rs.', '').replace(/,/g, '').trim();
+        document.getElementById('bikeYear').value = bike.year;
+        document.getElementById('bikeKm').value = bike.km;
+        document.getElementById('bikeLocation').value = bike.location;
+        document.getElementById('bikeBrand').value = bike.brand;
+        document.getElementById('bikeImageUrl').value = bike.image || '';
+        document.getElementById('editBikeModal').classList.remove('hidden');
+    }
+};
 
-// Authentication
+window.deleteBike = async (id) => {
+    if (!confirm('Delete this bike?')) return;
+    const response = await apiCall(`/api/bikes/${id}`, { method: 'DELETE' });
+    if (response && response.ok) {
+        showToast('Bike deleted successfully');
+        loadBikes();
+    }
+};
+
+window.editSold = (id) => {
+    const sold = soldList.find(s => s.id === id);
+    if (sold) {
+        document.getElementById('soldModalTitle').innerText = 'Edit Sold Entry';
+        document.getElementById('editSoldId').value = sold.id;
+        document.getElementById('soldName').value = sold.name;
+        document.getElementById('soldPrice').value = sold.sold_price.replace('Rs.', '').replace(/,/g, '').trim();
+        document.getElementById('soldMonthYear').value = sold.month_year;
+        document.getElementById('soldBuyer').value = sold.buyer;
+        document.getElementById('soldImageUrl').value = sold.image || '';
+        document.getElementById('editSoldModal').classList.remove('hidden');
+    }
+};
+
+window.deleteSold = async (id) => {
+    if (!confirm('Remove this sold record?')) return;
+    const response = await apiCall(`/api/sold/${id}`, { method: 'DELETE' });
+    if (response && response.ok) {
+        showToast('Sold entry removed');
+        loadSold();
+    }
+};
+
+window.openAddBikeModal = () => {
+    document.getElementById('modalTitle').innerText = 'Add New Bike';
+    document.getElementById('editBikeId').value = '';
+    document.getElementById('bikeName').value = '';
+    document.getElementById('bikePrice').value = '';
+    document.getElementById('bikeYear').value = '';
+    document.getElementById('bikeKm').value = '';
+    document.getElementById('bikeLocation').value = '';
+    document.getElementById('bikeBrand').value = '';
+    document.getElementById('bikeImageUrl').value = '';
+    document.getElementById('bikeImageUpload').value = '';
+    document.getElementById('bikeImagePreview').classList.add('hidden');
+    document.getElementById('editBikeModal').classList.remove('hidden');
+};
+
+window.openAddSoldModal = () => {
+    document.getElementById('soldModalTitle').innerText = 'Add Sold Entry';
+    document.getElementById('editSoldId').value = '';
+    document.getElementById('soldName').value = '';
+    document.getElementById('soldPrice').value = '';
+    document.getElementById('soldMonthYear').value = '';
+    document.getElementById('soldBuyer').value = '';
+    document.getElementById('soldImageUrl').value = '';
+    document.getElementById('soldImageUpload').value = '';
+    document.getElementById('soldImagePreview').classList.add('hidden');
+    document.getElementById('editSoldModal').classList.remove('hidden');
+};
+
+// ============= SAVE HANDLERS =============
+document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
+    const id = document.getElementById('editBikeId').value;
+    const name = document.getElementById('bikeName').value;
+    const priceRaw = document.getElementById('bikePrice').value;
+    const year = document.getElementById('bikeYear').value;
+    const km = document.getElementById('bikeKm').value;
+    const location = document.getElementById('bikeLocation').value;
+    const brand = document.getElementById('bikeBrand').value;
+    const imageUrl = document.getElementById('bikeImageUrl').value;
+    const imageFile = document.getElementById('bikeImageUpload').files[0];
+    
+    if (!name || !year || !km || !location || !brand) {
+        showToast('Please fill all required fields!', true);
+        return;
+    }
+    
+    const priceNum = parseInt(priceRaw.replace(/[^0-9]/g, '')) || 0;
+    const price = `Rs. ${priceNum.toLocaleString()}`;
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('price', price);
+    formData.append('price_num', priceNum);
+    formData.append('year', year);
+    formData.append('km', km);
+    formData.append('location', location);
+    formData.append('brand', brand);
+    if (imageUrl) formData.append('image_url', imageUrl);
+    if (imageFile) formData.append('image', imageFile);
+    
+    const url = id ? `/api/bikes/${id}` : '/api/bikes';
+    const method = id ? 'PUT' : 'POST';
+    
+    const response = await apiCall(url, { method, body: formData });
+    if (response && response.ok) {
+        showToast(id ? 'Bike updated!' : 'Bike added!');
+        closeAllModals();
+        loadBikes();
+    }
+});
+
+document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
+    const id = document.getElementById('editSoldId').value;
+    const name = document.getElementById('soldName').value;
+    const priceRaw = document.getElementById('soldPrice').value;
+    const monthYear = document.getElementById('soldMonthYear').value;
+    const buyer = document.getElementById('soldBuyer').value;
+    const imageUrl = document.getElementById('soldImageUrl').value;
+    const imageFile = document.getElementById('soldImageUpload').files[0];
+    
+    if (!name || !monthYear || !buyer) {
+        showToast('Please fill all required fields!', true);
+        return;
+    }
+    
+    const priceNum = parseInt(priceRaw.replace(/[^0-9]/g, '')) || 0;
+    const soldPrice = `Rs. ${priceNum.toLocaleString()}`;
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('sold_price', soldPrice);
+    formData.append('sold_price_num', priceNum);
+    formData.append('month_year', monthYear);
+    formData.append('buyer', buyer);
+    if (imageUrl) formData.append('image_url', imageUrl);
+    if (imageFile) formData.append('image', imageFile);
+    
+    const url = id ? `/api/sold/${id}` : '/api/sold';
+    const method = id ? 'PUT' : 'POST';
+    
+    const response = await apiCall(url, { method, body: formData });
+    if (response && response.ok) {
+        showToast(id ? 'Sold entry updated!' : 'Sold entry added!');
+        closeAllModals();
+        loadSold();
+    }
+});
+
+// ============= AUTHENTICATION =============
 async function checkAuth() {
     if (!token) return false;
-    try {
-        const response = await apiCall('/api/verify-token');
-        if (response && response.ok) {
-            const userResponse = await apiCall('/api/me');
-            if (userResponse && userResponse.ok) {
-                currentUser = await userResponse.json();
-            }
-            updateUILoggedIn();
-            return true;
+    const response = await apiCall('/api/verify-token');
+    if (response && response.ok) {
+        const userResponse = await apiCall('/api/me');
+        if (userResponse && userResponse.ok) {
+            currentUser = await userResponse.json();
         }
-    } catch (error) {
-        console.error('Auth check failed:', error);
+        document.getElementById('userStatusText').innerHTML = 'Admin';
+        document.getElementById('dropdownUserName').innerHTML = 'Admin (Edit Mode)';
+        document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
+        document.getElementById('logoutBtn').classList.remove('hidden');
+        document.getElementById('showLoginOption').classList.add('hidden');
+        return true;
     }
     return false;
-}
-
-function updateUILoggedIn() {
-    document.getElementById('userStatusText').innerHTML = 'Admin';
-    document.getElementById('dropdownUserName').innerHTML = `${currentUser?.username || 'Admin'} (Admin)`;
-    document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
-    document.getElementById('logoutBtn').classList.remove('hidden');
-    document.getElementById('showLoginOption').classList.add('hidden');
-    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-    
-    if (currentUser?.profile_picture) {
-        document.getElementById('navProfilePic').src = currentUser.profile_picture;
-        document.getElementById('navProfilePic').classList.remove('hidden');
-        document.getElementById('dropdownProfilePic').src = currentUser.profile_picture;
-        const userIcon = document.querySelector('#accountBtn .fa-user-circle');
-        if (userIcon) userIcon.style.display = 'none';
-    }
-}
-
-function updateUIGuest() {
-    document.getElementById('userStatusText').innerHTML = 'Guest';
-    document.getElementById('dropdownUserName').innerHTML = 'Guest User';
-    document.getElementById('dropdownUserRole').innerHTML = 'View Only Mode';
-    document.getElementById('logoutBtn').classList.add('hidden');
-    document.getElementById('showLoginOption').classList.remove('hidden');
-    document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
-    document.getElementById('navProfilePic').classList.add('hidden');
-    const userIcon = document.querySelector('#accountBtn .fa-user-circle');
-    if (userIcon) userIcon.style.display = 'inline-block';
 }
 
 async function login(username, password) {
@@ -250,13 +382,12 @@ async function login(username, password) {
     if (response && response.ok) {
         const data = await response.json();
         token = data.token;
-        currentUser = data.user;
         localStorage.setItem('token', token);
-        const userResponse = await apiCall('/api/me');
-        if (userResponse && userResponse.ok) {
-            currentUser = await userResponse.json();
-        }
-        updateUILoggedIn();
+        document.getElementById('userStatusText').innerHTML = 'Admin';
+        document.getElementById('dropdownUserName').innerHTML = 'Admin (Edit Mode)';
+        document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
+        document.getElementById('logoutBtn').classList.remove('hidden');
+        document.getElementById('showLoginOption').classList.add('hidden');
         closeAllModals();
         showToast('Login successful!');
         if (currentPage === 'bikes') loadBikes();
@@ -270,19 +401,22 @@ async function login(username, password) {
 
 function logout() {
     token = null;
-    currentUser = null;
     localStorage.removeItem('token');
-    updateUIGuest();
-    showToast('Logged out successfully');
+    document.getElementById('userStatusText').innerHTML = 'Guest';
+    document.getElementById('dropdownUserName').innerHTML = 'Guest User';
+    document.getElementById('dropdownUserRole').innerHTML = 'View Only Mode';
+    document.getElementById('logoutBtn').classList.add('hidden');
+    document.getElementById('showLoginOption').classList.remove('hidden');
+    showToast('Logged out');
     if (currentPage === 'bikes') loadBikes();
     if (currentPage === 'sold') loadSold();
 }
 
-// Event Listeners
-document.getElementById('doLoginBtn')?.addEventListener('click', async () => {
+// ============= EVENT LISTENERS =============
+document.getElementById('doLoginBtn')?.addEventListener('click', () => {
     const username = document.getElementById('loginUsername').value;
     const password = document.getElementById('loginPassword').value;
-    await login(username, password);
+    login(username, password);
 });
 
 document.getElementById('showLoginOption')?.addEventListener('click', (e) => {
@@ -297,7 +431,7 @@ document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
 
 document.getElementById('accountBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    document.getElementById('accountDropdown')?.classList.toggle('hidden');
+    document.getElementById('accountDropdown').classList.toggle('hidden');
 });
 
 document.addEventListener('click', (e) => {
@@ -307,42 +441,43 @@ document.addEventListener('click', (e) => {
 });
 
 document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
-    document.getElementById('mobileTabs')?.classList.toggle('hidden');
+    document.getElementById('mobileTabs').classList.toggle('hidden');
 });
 
-// Nav links
 document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
-        const page = link.dataset.page;
-        if (page) window.navigateTo(page);
+        window.navigateTo(link.dataset.page);
     });
 });
 
-// Close modals
-function closeAllModals() {
-    const modals = ['loginModal', 'profileModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'createUserModal', 'editLogoModal', 'editBikeModal', 'editSoldModal'];
-    modals.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-    });
-}
+document.getElementById('closeModalBtn')?.addEventListener('click', closeAllModals);
+document.getElementById('closeSoldModalBtn')?.addEventListener('click', closeAllModals);
+document.getElementById('closeLogoModalBtn')?.addEventListener('click', closeAllModals);
+document.getElementById('closeLoginModalBtn')?.addEventListener('click', closeAllModals);
 
-document.querySelectorAll('[id$="ModalBtn"], [id*="close"]').forEach(btn => {
-    if (btn.id && (btn.id.includes('close') || btn.id.includes('Close'))) {
-        btn.addEventListener('click', closeAllModals);
+// Image preview handlers
+document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('bikeImagePreview').src = ev.target.result;
+            document.getElementById('bikeImagePreview').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
     }
 });
 
-// Clickable logo
-document.getElementById('clickableLogo')?.addEventListener('click', () => {
-    if (token) {
-        document.getElementById('logoPreview').src = document.getElementById('siteLogo').src;
-        document.getElementById('logoUrlInput').value = document.getElementById('siteLogo').src;
-        document.getElementById('editLogoModal').classList.remove('hidden');
-    } else {
-        showToast('Please login as admin to change logo', true);
-        document.getElementById('loginModal').classList.remove('hidden');
+document.getElementById('soldImageUpload')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            document.getElementById('soldImagePreview').src = ev.target.result;
+            document.getElementById('soldImagePreview').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
     }
 });
 
@@ -355,7 +490,6 @@ document.addEventListener('click', (e) => {
             btn.classList.add('bg-white', 'text-gray-700');
         });
         e.target.classList.add('active-filter', 'bg-blue-600', 'text-white');
-        e.target.classList.remove('bg-white', 'text-gray-700');
         
         if (filter === 'all') bikes.sort((a, b) => b.id - a.id);
         else if (filter === 'price-desc') bikes.sort((a, b) => b.price_num - a.price_num);
@@ -364,25 +498,50 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Initialize
+// Logo handlers
+document.getElementById('clickableLogo')?.addEventListener('click', () => {
+    if (token) {
+        document.getElementById('logoPreview').src = document.getElementById('siteLogo').src;
+        document.getElementById('logoUrlInput').value = document.getElementById('siteLogo').src;
+        document.getElementById('editLogoModal').classList.remove('hidden');
+    } else {
+        showToast('Please login as admin to change logo', true);
+        document.getElementById('loginModal').classList.remove('hidden');
+    }
+});
+
+document.getElementById('saveLogoBtn')?.addEventListener('click', async () => {
+    const logoUrl = document.getElementById('logoUrlInput').value;
+    const logoFile = document.getElementById('logoUploadInput').files[0];
+    const formData = new FormData();
+    if (logoUrl) formData.append('logoUrl', logoUrl);
+    if (logoFile) formData.append('logo', logoFile);
+    
+    const response = await apiCall('/api/settings/logo', { method: 'POST', body: formData });
+    if (response && response.ok) {
+        const data = await response.json();
+        document.getElementById('siteLogo').src = data.logoUrl;
+        showToast('Logo updated!');
+        closeAllModals();
+    }
+});
+
+// ============= INITIALIZE =============
 async function init() {
-    console.log('🚀 Initializing app...');
+    console.log('🚀 Starting app...');
     
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
         token = savedToken;
-        const valid = await checkAuth();
-        if (!valid) logout();
+        await checkAuth();
     }
     
-    // Load logo
     const logoResponse = await apiCall('/api/settings/logo');
     if (logoResponse && logoResponse.ok) {
         const data = await logoResponse.json();
         document.getElementById('siteLogo').src = data.logoUrl;
     }
     
-    // Start on home page
     window.navigateTo('home');
 }
 
@@ -391,5 +550,4 @@ const style = document.createElement('style');
 style.textContent = `@keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } } .toast { animation: fadeInOut 3s ease; }`;
 document.head.appendChild(style);
 
-// Start the app
 init();
