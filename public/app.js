@@ -1,4 +1,4 @@
-// app.js - Complete Working Version with Profile Picture and Sold Photos
+// app.js - Complete with Click to View Details
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -28,7 +28,7 @@ function escapeHtml(str) {
 }
 
 function closeAllModals() {
-    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal', 'profileModal'];
+    const modals = ['loginModal', 'settingsModal', 'changePasswordModal', 'changeUsernameModal', 'editBikeModal', 'editSoldModal', 'editLogoModal', 'socialLinksModal', 'bikeDetailsModal', 'soldDetailsModal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
@@ -79,7 +79,7 @@ const templates = {
     
     bikes: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Browse our premium collection</p></div>${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">🔥 Available Motorcycles</h1><p class="text-gray-600">Click on any bike to view details</p></div>${token ? `<button onclick="window.openAddBikeModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add New Bike</button>` : ''}</div>
             <div class="flex gap-2 mb-6 flex-wrap"><button data-filter="all" class="filter-chip active-filter px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">All Bikes</button><button data-filter="price-desc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price High-Low</button><button data-filter="price-asc" class="filter-chip px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition">Price Low-High</button></div>
             <div id="bikesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
@@ -87,7 +87,7 @@ const templates = {
     
     sold: () => `
         <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Sold archive with buyer details</p></div>${token ? `<button onclick="window.openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-3"><div><h1 class="text-3xl md:text-4xl font-black">✅ Recently Sold Bikes</h1><p class="text-gray-500">Click on any sold bike to view details</p></div>${token ? `<button onclick="window.openAddSoldModal()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition"><i class="fas fa-plus"></i> Add Sold Entry</button>` : ''}</div>
             <div id="soldGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     `,
@@ -129,6 +129,83 @@ const templates = {
             </div>
         </div>
     `
+};
+
+// ============= DETAILS MODAL FUNCTIONS =============
+window.showBikeDetails = (bike) => {
+    const modalHtml = `
+        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
+                <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold text-blue-600">${bike.price}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Year</p><p class="text-lg font-semibold">${bike.year}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📊 Kilometers</p><p class="text-lg font-semibold">${bike.km}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Added On</p><p class="text-lg font-semibold">${new Date(bike.created_at).toLocaleDateString()}</p></div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                ${token ? `
+                    <button onclick="window.editBike('${bike._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Bike</button>
+                    <button onclick="window.deleteBike('${bike._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Bike</button>
+                ` : `
+                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}%20(${bike.price})" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 rounded-lg transition"><i class="fab fa-whatsapp"></i> Inquire Now</a>
+                `}
+                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
+            </div>
+        </div>
+    `;
+    
+    let modal = document.getElementById('bikeDetailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'bikeDetailsModal';
+        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = modalHtml;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+};
+
+window.showSoldDetails = (sold) => {
+    const modalHtml = `
+        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
+                <button onclick="closeAllModals()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            ${sold.image ? `<img src="${sold.image}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.style.display='none'">` : ''}
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Sold Price</p><p class="text-xl font-bold text-green-600">${sold.sold_price}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">👤 Buyer Name</p><p class="text-lg font-semibold">${escapeHtml(sold.buyer)}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Sold Date</p><p class="text-lg font-semibold">${sold.month_year}</p></div>
+                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🕐 Recorded On</p><p class="text-lg font-semibold">${new Date(sold.created_at).toLocaleDateString()}</p></div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                ${token ? `
+                    <button onclick="window.editSold('${sold._id}'); closeAllModals();" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition"><i class="fas fa-edit"></i> Edit Entry</button>
+                    <button onclick="window.deleteSold('${sold._id}'); closeAllModals();" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"><i class="fas fa-trash"></i> Delete Entry</button>
+                ` : ''}
+                <button onclick="closeAllModals()" class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 rounded-lg transition">Close</button>
+            </div>
+        </div>
+    `;
+    
+    let modal = document.getElementById('soldDetailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'soldDetailsModal';
+        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = modalHtml;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
 };
 
 // ============= NAVIGATION =============
@@ -210,11 +287,18 @@ function renderBikes() {
         return;
     }
     grid.innerHTML = bikes.map(bike => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border hover:shadow-lg transition">
+        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border hover:shadow-lg transition cursor-pointer" onclick="window.showBikeDetails(${JSON.stringify(bike).replace(/</g, '\\u003c')})">
             <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full h-48 object-cover" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
-            <div class="p-4"><h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3><div class="text-blue-600 font-bold text-xl">${bike.price}</div>
-            <div class="grid grid-cols-2 gap-1 text-xs text-gray-500 mt-2"><span><i class="far fa-calendar"></i> ${bike.year}</span><span><i class="fas fa-road"></i> ${bike.km}</span><span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span><span><i class="fas fa-tag"></i> ${bike.brand}</span></div>
-            ${token ? `<div class="flex gap-2 mt-4"><button onclick="window.editBike('${bike._id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="window.deleteBike('${bike._id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" class="mt-4 block bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-xl text-sm transition"><i class="fab fa-whatsapp mr-1"></i> Inquire Now</a>`}
+            <div class="p-4">
+                <h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3>
+                <div class="text-blue-600 font-bold text-xl">${bike.price}</div>
+                <div class="grid grid-cols-2 gap-1 text-xs text-gray-500 mt-2">
+                    <span><i class="far fa-calendar"></i> ${bike.year}</span>
+                    <span><i class="fas fa-road"></i> ${bike.km}</span>
+                    <span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span>
+                    <span><i class="fas fa-tag"></i> ${bike.brand}</span>
+                </div>
+                <div class="mt-3 text-xs text-gray-400">Click for details →</div>
             </div>
         </div>
     `).join('');
@@ -228,11 +312,14 @@ function renderSold() {
         return;
     }
     grid.innerHTML = soldList.map(s => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md sold-card border-l-8 border-green-500 hover:shadow-lg transition p-4">
-            <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3><p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
-            <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-            ${s.image ? `<div class="mt-3"><img src="${s.image}" class="w-32 h-24 object-cover rounded-lg" onerror="this.style.display='none'"></div>` : ''}
-            ${token ? `<div class="flex gap-3 mt-4"><button onclick="window.editSold('${s._id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-edit"></i> Edit</button><button onclick="window.deleteSold('${s._id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs transition"><i class="fas fa-trash"></i> Delete</button></div>` : `<div class="mt-3 text-gray-500 text-xs"><i class="fas fa-check-circle text-green-500"></i> Sold by Mr. Priyan Motors</div>`}
+        <div class="bg-white rounded-2xl overflow-hidden shadow-md sold-card border-l-8 border-green-500 hover:shadow-lg transition cursor-pointer" onclick="window.showSoldDetails(${JSON.stringify(s).replace(/</g, '\\u003c')})">
+            <div class="p-4">
+                <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
+                <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
+                <p class="text-sm text-gray-600 mt-1"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
+                ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onerror="this.style.display='none'"></div>` : ''}
+                <div class="mt-2 text-xs text-gray-400">Click for details →</div>
+            </div>
         </div>
     `).join('');
 }
@@ -435,103 +522,6 @@ document.getElementById('saveSocialLinksBtn')?.addEventListener('click', async (
     }
 });
 
-// ============= PROFILE PICTURE FUNCTIONS =============
-// Create profile modal dynamically if not exists
-if (!document.getElementById('profileModal')) {
-    const profileModal = document.createElement('div');
-    profileModal.id = 'profileModal';
-    profileModal.className = 'fixed inset-0 z-[200] hidden items-center justify-center modal-overlay p-4';
-    profileModal.innerHTML = `
-        <div class="bg-white rounded-2xl w-full max-w-md p-6">
-            <h3 class="text-xl font-bold mb-4">My Profile</h3>
-            <div class="text-center mb-4">
-                <img id="profilePreview" src="" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-blue-200">
-                <button id="uploadProfilePicBtn" class="mt-2 text-sm text-blue-600">Change Profile Picture</button>
-                <input type="file" id="profilePicInput" accept="image/*" class="hidden">
-            </div>
-            <p><strong>Username:</strong> <span id="profileUsername"></span></p>
-            <p><strong>Role:</strong> <span id="profileRole"></span></p>
-            <button id="closeProfileModalBtn" class="w-full mt-4 bg-gray-300 py-2 rounded-lg">Close</button>
-        </div>
-    `;
-    document.body.appendChild(profileModal);
-}
-
-document.getElementById('uploadProfilePicBtn')?.addEventListener('click', () => {
-    document.getElementById('profilePicInput').click();
-});
-
-document.getElementById('profilePicInput')?.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    showToast('Uploading profile picture...');
-    
-    const response = await apiCall('/api/upload-profile-picture', {
-        method: 'POST',
-        body: formData
-    });
-    
-    if (response && response.ok) {
-        const data = await response.json();
-        
-        if (currentUser) {
-            currentUser.profile_picture = data.imageUrl;
-        }
-        
-        // Update profile picture in UI
-        const profilePreview = document.getElementById('profilePreview');
-        if (profilePreview) profilePreview.src = data.imageUrl;
-        
-        showToast('Profile picture updated successfully!');
-        closeAllModals();
-    } else {
-        showToast('Failed to upload profile picture', true);
-    }
-});
-
-// Add Profile Menu Item to Dropdown
-const accountDropdown = document.getElementById('accountDropdown');
-if (accountDropdown) {
-    const profileMenuItem = document.createElement('a');
-    profileMenuItem.href = '#';
-    profileMenuItem.id = 'profileMenuItem';
-    profileMenuItem.className = 'flex items-center gap-3 px-4 py-2 hover:bg-gray-50';
-    profileMenuItem.innerHTML = '<i class="fas fa-id-card w-5"></i> Profile';
-    profileMenuItem.addEventListener('click', (e) => {
-        e.preventDefault();
-        showProfileModal();
-    });
-    
-    // Insert after the first div
-    const firstDiv = accountDropdown.querySelector('div');
-    if (firstDiv) {
-        firstDiv.insertAdjacentElement('afterend', profileMenuItem);
-    }
-}
-
-async function showProfileModal() {
-    if (token && currentUser) {
-        const response = await apiCall('/api/me');
-        if (response && response.ok) {
-            currentUser = await response.json();
-        }
-        document.getElementById('profileUsername').innerText = currentUser?.username || 'Admin';
-        document.getElementById('profileRole').innerText = 'Administrator';
-        const profilePreview = document.getElementById('profilePreview');
-        if (profilePreview) profilePreview.src = currentUser?.profile_picture || '';
-    } else {
-        document.getElementById('profileUsername').innerText = 'Guest';
-        document.getElementById('profileRole').innerText = 'Guest User';
-        const profilePreview = document.getElementById('profilePreview');
-        if (profilePreview) profilePreview.src = '';
-    }
-    document.getElementById('profileModal').classList.remove('hidden');
-}
-
 // ============= SETTINGS & AUTHENTICATION =============
 document.getElementById('settingsMenuItem')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -625,6 +615,7 @@ async function checkAuth() {
         document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
         document.getElementById('logoutBtn').classList.remove('hidden');
         document.getElementById('showLoginOption').classList.add('hidden');
+        document.getElementById('editLogoMenuItem').classList.remove('hidden');
         return true;
     }
     return false;
@@ -651,6 +642,7 @@ async function login(username, password) {
         document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
         document.getElementById('logoutBtn').classList.remove('hidden');
         document.getElementById('showLoginOption').classList.add('hidden');
+        document.getElementById('editLogoMenuItem').classList.remove('hidden');
         closeAllModals();
         showToast('Login successful!');
         if (currentPage === 'bikes') loadBikes();
@@ -671,6 +663,7 @@ function logout() {
     document.getElementById('dropdownUserRole').innerHTML = 'View Only Mode';
     document.getElementById('logoutBtn').classList.add('hidden');
     document.getElementById('showLoginOption').classList.remove('hidden');
+    document.getElementById('editLogoMenuItem').classList.add('hidden');
     showToast('Logged out successfully');
     if (currentPage === 'bikes') loadBikes();
     if (currentPage === 'sold') loadSold();
@@ -724,7 +717,6 @@ document.getElementById('closeSettingsModalBtn')?.addEventListener('click', clos
 document.getElementById('closePasswordModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeUsernameModalBtn')?.addEventListener('click', closeAllModals);
 document.getElementById('closeSocialLinksModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closeProfileModalBtn')?.addEventListener('click', closeAllModals);
 
 // Image preview for bike
 document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
