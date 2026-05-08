@@ -1,4 +1,4 @@
-// server.js - Complete Backend with Comments and Feedback
+// server.js - Complete Backend with Comments and Feedback (ADDED MISSING ROUTES)
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -396,6 +396,7 @@ app.post('/api/comments/:commentId/reply', async (req, res) => {
   }
 });
 
+// ONLY ADMIN can delete comments
 app.delete('/api/comments/:commentId', authenticateToken, async (req, res) => {
   try {
     await Comment.findByIdAndDelete(req.params.commentId);
@@ -425,6 +426,7 @@ app.post('/api/feedbacks', async (req, res) => {
   }
 });
 
+// ONLY ADMIN can delete feedbacks
 app.delete('/api/feedbacks/:feedbackId', authenticateToken, async (req, res) => {
   try {
     await Feedback.findByIdAndDelete(req.params.feedbackId);
