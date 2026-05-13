@@ -1,32 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mrpriyan-motors",
+  "name": "mrpriyan-motors-frontend",
   "compatibility_date": "2026-05-13",
-  "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": ".",
   "assets": {
     "directory": ".",
-    "exclude": [
-      "node_modules/**",
-      ".git/**",
-      ".env",
-      "*.log",
-      "package-lock.json",
-      "wrangler.jsonc",
-      ".gitignore",
-      "package.json"
-    ],
-    "include": [
-      "*.html",
-      "*.css",
-      "*.js",
-      "*.png",
-      "*.jpg",
-      "*.jpeg",
-      "*.svg",
-      "*.ico"
-    ]
-  },
-  "observability": {
-    "enabled": true
+    "binding": "ASSETS"
   }
 }
