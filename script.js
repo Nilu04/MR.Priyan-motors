@@ -1,5 +1,6 @@
 // script.js - Complete JavaScript for Mr. Priyan Motors
-const API_URL = '';
+// Change from local to your Render backend
+const API_URL = 'https://priyan-motors.onrender.com';
 let token = localStorage.getItem('token');
 let currentUser = null;
 let bikes = [];
