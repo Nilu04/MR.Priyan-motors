@@ -1,0 +1,17 @@
+name = "mrpriyan-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables
+[vars]
+MONGODB_URI = "mongodb+srv://priyan_admin:PriyanMotor2026@cluster1.qobexsl.mongodb.net/priyan-motors?retryWrites=true&w=majority"
+JWT_SECRET = "your-super-secret-jwt-key-change-this"
+
+# Production environment
+[env.production]
+vars = { NODE_ENV = "production" }
+
+# Observability
+[observability]
+enabled = true
