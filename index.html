@@ -2,132 +2,130 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Mr. Priyan Motors | Home</title>
-    <!-- Favicon for Browser Tab -->
-    <link rel="icon" type="image/png" href="https://priyan-motors.onrender.com/logo.png">
-    <link rel="shortcut icon" href="https://priyan-motors.onrender.com/logo.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Mr. Priyan Motors | Premium Motorcycles Batticaloa</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300,400,500,600,700,800,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <style>
-        .hero-gradient {
-            background: linear-gradient(125deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 100%), url('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');
-            background-size: cover;
-            background-position: center 35%;
-        }
-    </style>
+    <link rel="icon" type="image/png" href="logo.png">
 </head>
 <body>
 
-<!-- Navigation Bar -->
-<nav class="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
-    <div class="container mx-auto px-3 md:px-6">
-        <div class="flex flex-wrap items-center justify-between py-2 md:py-3">
-            <a href="index.html" class="flex items-center space-x-2 md:space-x-3">
-                <img id="siteLogo" src="https://priyan-motors.onrender.com/logo.png" alt="Logo" class="w-11 h-11 md:w-14 md:h-14 rounded-full border-2 border-gray-300 shadow-sm object-cover">
-                <h1 class="text-lg md:text-2xl font-black tracking-tight">MR. PRIYAN <span class="text-[#4682B4]">MOTORS</span></h1>
-            </a>
-            
-            <div class="hidden md:flex space-x-1 lg:space-x-2 font-semibold">
-                <a href="index.html" class="px-4 py-2 text-gray-700 hover:text-blue-600 transition active-page">Home</a>
-                <a href="bikes.html" class="px-4 py-2 text-gray-700 hover:text-blue-600 transition">Bikes</a>
-                <a href="sold.html" class="px-4 py-2 text-gray-700 hover:text-blue-600 transition">Sold</a>
-                <a href="exchange.html" class="px-4 py-2 text-gray-700 hover:text-blue-600 transition">Sell/Exchange</a>
-                <a href="contact.html" class="px-4 py-2 text-gray-700 hover:text-blue-600 transition">Contact</a>
-            </div>
-            
-            <div class="flex items-center gap-2 md:gap-3">
-                <a href="tel:0753503111" class="bg-blue-600 text-white px-3 py-2 md:px-4 rounded-full text-sm font-bold hover:bg-blue-700"><i class="fas fa-phone-alt mr-1"></i> <span class="hidden sm:inline">Call</span></a>
-                <div class="relative">
-                    <button id="accountBtn" class="flex items-center gap-1 md:gap-2 bg-gray-100 hover:bg-gray-200 rounded-full px-3 py-2 transition text-sm md:text-base">
-                        <i class="fas fa-user-circle text-lg md:text-xl text-blue-600"></i> 
-                        <span id="userStatusText" class="font-medium">Guest</span> 
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </button>
-                    <div id="accountDropdown" class="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-gray-200 hidden z-50">
-                        <div class="p-3 border-b">
-                            <p class="font-semibold" id="dropdownUserName">Guest User</p>
-                            <p class="text-xs text-gray-400" id="dropdownUserRole">View Only Mode</p>
-                        </div>
-                        <a href="#" id="showLoginOption" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-blue-600"><i class="fas fa-sign-in-alt w-5"></i> Admin Login</a>
-                        <a href="#" id="logoutBtn" class="flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 hidden"><i class="fas fa-sign-out-alt w-5"></i> Logout</a>
-                    </div>
+<!-- Navigation -->
+<nav>
+    <div class="nav-container">
+        <div class="logo-area">
+            <img id="siteLogo" src="https://placehold.co/400x400/1E3A8A/white?text=PM" alt="Logo" class="logo-img">
+            <div class="logo-text">MR. PRIYAN<br><span>MOTORS</span></div>
+        </div>
+        <div class="right-icons">
+            <a href="tel:0753503111" class="call-btn"><i class="fas fa-phone-alt"></i> Call</a>
+            <div class="dropdown">
+                <button class="account-btn" id="accountBtn"><i class="fas fa-user-circle"></i> <span id="userStatusText">Guest</span> <i class="fas fa-chevron-down"></i></button>
+                <div class="dropdown-menu" id="accountDropdown">
+                    <a href="#" id="showLoginOption" class="dropdown-item"><i class="fas fa-sign-in-alt"></i> Admin Login</a>
+                    <a href="#" id="logoutBtn" class="dropdown-item text-red"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
-                <button id="mobileMenuToggle" class="md:hidden text-gray-800 text-2xl p-1"><i class="fas fa-bars"></i></button>
             </div>
+            <button class="menu-btn" id="mobileMenuToggle"><i class="fas fa-bars"></i></button>
         </div>
-        <div id="mobileTabs" class="hidden md:hidden flex-col pb-3 space-y-1 font-medium border-t border-gray-100 mt-1">
-            <a href="index.html" class="py-3 px-3 hover:bg-gray-100 rounded-lg flex items-center gap-2"><i class="fas fa-home w-5"></i> Home</a>
-            <a href="bikes.html" class="py-3 px-3 hover:bg-gray-100 rounded-lg flex items-center gap-2"><i class="fas fa-motorcycle w-5"></i> Bikes</a>
-            <a href="sold.html" class="py-3 px-3 hover:bg-gray-100 rounded-lg flex items-center gap-2"><i class="fas fa-check-circle w-5"></i> Sold</a>
-            <a href="exchange.html" class="py-3 px-3 hover:bg-gray-100 rounded-lg flex items-center gap-2"><i class="fas fa-exchange-alt w-5"></i> Sell/Exchange</a>
-            <a href="contact.html" class="py-3 px-3 hover:bg-gray-100 rounded-lg flex items-center gap-2"><i class="fas fa-phone-alt w-5"></i> Contact</a>
-        </div>
+    </div>
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="index.html" data-page="home"><i class="fas fa-home"></i> Home</a>
+        <a href="bikes.html" data-page="bikes"><i class="fas fa-motorcycle"></i> Bikes</a>
+        <a href="sold.html" data-page="sold"><i class="fas fa-check-circle"></i> Sold</a>
+        <a href="exchange.html" data-page="exchange"><i class="fas fa-exchange-alt"></i> Sell/Exchange</a>
+        <a href="contact.html" data-page="contact"><i class="fas fa-phone-alt"></i> Contact</a>
     </div>
 </nav>
 
-<!-- Home Page Content -->
-<main>
-    <header class="hero-gradient min-h-[75vh] flex items-center justify-center text-center text-white">
-        <div class="container mx-auto px-4 py-8">
-            <span class="inline-block bg-blue-600/80 px-4 py-1 rounded-full text-sm font-bold mb-4">#RideTheExtraordinary</span>
-            <h1 class="text-4xl md:text-7xl font-black mb-4">Own Your <span class="text-blue-400">Dream Machine</span></h1>
-            <p class="text-base md:text-2xl text-gray-200 max-w-3xl mx-auto mb-6">Premium new & used motorcycles | Main Street, Kiran, Batticaloa</p>
-            <div class="flex justify-center gap-4 flex-wrap">
-                <a href="bikes.html" class="bg-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Explore Bikes</a>
-                <a href="exchange.html" class="bg-transparent border-2 border-white px-6 py-3 rounded-xl font-bold hover:bg-green-600 transition">Sell Your Bike</a>
-            </div>
-            <div class="grid grid-cols-3 gap-4 mt-10 max-w-3xl mx-auto">
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-3"><div class="text-2xl md:text-3xl font-black text-blue-400">500+</div><div class="text-xs md:text-sm">Bikes Sold</div></div>
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-3"><div class="text-2xl md:text-3xl font-black text-blue-400">100%</div><div class="text-xs md:text-sm">Trust</div></div>
-                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-3"><div class="text-2xl md:text-3xl font-black text-blue-400">24/7</div><div class="text-xs md:text-sm">Support</div></div>
-            </div>
-        </div>
-    </header>
-    <section class="py-16 bg-white text-center">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl font-bold mb-8">Why Choose <span class="text-blue-600">Mr. Priyan Motors?</span></h2>
-            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                <div><i class="fas fa-shield-alt text-blue-600 text-4xl"></i><h3 class="font-bold text-xl mt-2">Trusted Dealer</h3><p class="text-gray-600">Since 2021</p></div>
-                <div><i class="fas fa-hand-holding-usd text-blue-600 text-4xl"></i><h3 class="font-bold text-xl mt-2">Best Exchange</h3><p class="text-gray-600">Instant valuation</p></div>
-                <div><i class="fas fa-file-signature text-blue-600 text-4xl"></i><h3 class="font-bold text-xl mt-2">Hassle-free Docs</h3><p class="text-gray-600">Full support</p></div>
-            </div>
-        </div>
-    </section>
-</main>
+<!-- Hero Section -->
+<section class="hero">
+    <span class="hero-badge">🏍️ #RideTheExtraordinary</span>
+    <h1>Own Your <span>Dream Machine</span></h1>
+    <p>Premium new & used motorcycles | Best buy-back & exchange offers<br>Main Street, Kiran, Batticaloa</p>
+    <div class="hero-buttons">
+        <a href="bikes.html" class="btn-primary"><i class="fas fa-motorcycle"></i> Explore Bikes</a>
+        <a href="exchange.html" class="btn-outline"><i class="fas fa-exchange-alt"></i> Sell Your Bike</a>
+    </div>
+    <div class="stats">
+        <div class="stat-item"><div class="stat-number">500+</div><div class="stat-label">Bikes Sold</div></div>
+        <div class="stat-item"><div class="stat-number">100%</div><div class="stat-label">Trust</div></div>
+        <div class="stat-item"><div class="stat-number">24/7</div><div class="stat-label">Support</div></div>
+    </div>
+</section>
 
+<!-- Why Choose Us -->
+<section class="section">
+    <h2 class="section-title">Why Choose <span style="color:#2563eb">Mr. Priyan Motors?</span></h2>
+    <div class="why-choose">
+        <div class="feature-card"><div class="feature-icon"><i class="fas fa-shield-alt"></i></div><div class="feature-title">Trusted Dealer</div><div class="feature-text">Since 2021</div></div>
+        <div class="feature-card"><div class="feature-icon"><i class="fas fa-hand-holding-usd"></i></div><div class="feature-title">Best Exchange</div><div class="feature-text">Instant valuation</div></div>
+        <div class="feature-card"><div class="feature-icon"><i class="fas fa-file-signature"></i></div><div class="feature-title">Hassle-free Docs</div><div class="feature-text">Full support</div></div>
+    </div>
+</section>
+
+<!-- Footer -->
 <footer>
     <p>&copy; 2025 Mr. Priyan Motors – Batticaloa. All Rights Reserved.</p>
-    <p class="text-xs mt-1 opacity-80">Admin: Click Account → Admin Login to edit</p>
+    <p style="font-size: 11px; margin-top: 8px; opacity: 0.7">Admin: Click Account → Admin Login to edit</p>
 </footer>
 
-<a href="https://wa.me/94753503111" class="fixed bottom-5 right-5 bg-green-500 text-white w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-2xl z-50 hover:bg-green-600 transition"><i class="fab fa-whatsapp"></i></a>
+<!-- Floating WhatsApp -->
+<a href="https://wa.me/94753503111" class="whatsapp-float"><i class="fab fa-whatsapp"></i></a>
 
-<!-- Modals -->
-<div id="loginModal" class="fixed inset-0 z-[200] hidden items-center justify-center modal-overlay p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto p-6">
-        <div class="text-center mb-5"><i class="fas fa-motorcycle text-blue-600 text-4xl"></i><h2 class="text-xl font-bold mt-2">Admin Access</h2><p class="text-gray-500 text-xs">Login to manage bikes, sold listings & settings</p></div>
-        <div id="loginError" class="bg-red-100 text-red-700 p-2 rounded-lg text-sm mb-4 hidden">Invalid credentials</div>
-        <input type="text" id="loginUsername" placeholder="Username" class="w-full border border-gray-300 rounded-xl px-4 py-3 mb-3">
-        <input type="password" id="loginPassword" placeholder="Password" class="w-full border border-gray-300 rounded-xl px-4 py-3 mb-4">
-        <button id="doLoginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">Login as Admin</button>
-        <button id="closeLoginModalBtn" class="w-full mt-3 text-gray-500 text-sm py-2">Cancel</button>
+<!-- Login Modal -->
+<div id="loginModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-motorcycle"></i> Admin Access</h3>
+            <button class="modal-close" onclick="closeModal('loginModal')">&times;</button>
+        </div>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Login to manage bikes & sold listings</p>
+        <div id="loginError" style="background:#fee2e2; color:#dc2626; padding:10px; border-radius:12px; margin-bottom:16px; display:none;">Invalid credentials</div>
+        <input type="text" id="loginUsername" placeholder="Username" class="form-control" style="width:100%; padding:14px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:12px; font-size:16px;">
+        <input type="password" id="loginPassword" placeholder="Password" class="form-control" style="width:100%; padding:14px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:20px; font-size:16px;">
+        <button id="doLoginBtn" style="width:100%; background:#2563eb; color:white; padding:14px; border:none; border-radius:12px; font-weight:600; font-size:16px;">Login as Admin</button>
+        <button onclick="closeModal('loginModal')" style="width:100%; margin-top:12px; background:none; border:none; padding:12px; color:#64748b;">Cancel</button>
     </div>
 </div>
 
-<div id="editLogoModal" class="fixed inset-0 z-[200] hidden items-center justify-center modal-overlay p-4">
-    <div class="bg-white rounded-2xl w-full max-w-md p-6">
-        <h3 class="text-xl font-bold mb-4">Update Website Logo</h3>
-        <div class="text-center mb-4"><img id="logoPreview" src="" class="w-28 h-28 rounded-full object-cover mx-auto border-4 border-gray-200"></div>
-        <input type="file" id="logoUploadInput" accept="image/*" class="w-full border p-2 rounded-lg mb-3">
-        <input type="text" id="logoUrlInput" placeholder="Or paste image URL" class="w-full border p-3 rounded-lg mb-3">
-        <button id="saveLogoBtn" class="w-full bg-purple-600 text-white py-3 rounded-lg font-bold">Update Logo</button>
-        <button id="closeLogoModalBtn" class="w-full mt-2 text-gray-500 py-2">Cancel</button>
+<!-- Edit Logo Modal -->
+<div id="editLogoModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Update Logo</h3>
+            <button class="modal-close" onclick="closeModal('editLogoModal')">&times;</button>
+        </div>
+        <div style="text-align:center; margin-bottom:20px;"><img id="logoPreview" src="" style="width:100px; height:100px; border-radius:50%; object-fit:cover; border:3px solid #e2e8f0;"></div>
+        <input type="file" id="logoUploadInput" accept="image/*" style="width:100%; padding:12px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:12px;">
+        <input type="text" id="logoUrlInput" placeholder="Or paste image URL" style="width:100%; padding:14px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:20px;">
+        <button id="saveLogoBtn" style="width:100%; background:#8b5cf6; color:white; padding:14px; border:none; border-radius:12px; font-weight:600;">Update Logo</button>
     </div>
 </div>
 
 <script src="script.js"></script>
+<script>
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+    
+    // Mobile menu toggle
+    document.getElementById('mobileMenuToggle').addEventListener('click', function() {
+        const menu = document.getElementById('mobileMenu');
+        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+    });
+    
+    // Account dropdown
+    document.getElementById('accountBtn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        document.getElementById('accountDropdown').classList.toggle('show');
+    });
+    
+    document.addEventListener('click', function() {
+        document.getElementById('accountDropdown').classList.remove('show');
+    });
+</script>
 </body>
 </html>

@@ -1,9 +1,10 @@
-// script.js - Complete Fixed Version
+// script.js - Complete JavaScript for Mr. Priyan Motors
 const API_URL = '';
 let token = localStorage.getItem('token');
 let currentUser = null;
 let bikes = [];
 let soldList = [];
+let socialLinks = { whatsapp_group: '', facebook_page: '' };
 
 // ============= HELPER FUNCTIONS =============
 function showToast(message, isError = false) {
@@ -28,7 +29,7 @@ function closeAllModals() {
     const modals = ['loginModal', 'editBikeModal', 'editSoldModal', 'editLogoModal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
+        if (el) el.style.display = 'none';
     });
 }
 
@@ -71,116 +72,137 @@ async function loadSold() {
     }
 }
 
+async function loadSocialLinks() {
+    const response = await apiCall('/api/settings/social');
+    if (response && response.ok) {
+        socialLinks = await response.json();
+        const whatsappBtn = document.getElementById('whatsappGroupBtn');
+        const facebookBtn = document.getElementById('facebookPageBtn');
+        if (whatsappBtn) whatsappBtn.href = socialLinks.whatsapp_group || 'https://chat.whatsapp.com/yourinvitecode';
+        if (facebookBtn) facebookBtn.href = socialLinks.facebook_page || 'https://facebook.com/yourpage';
+        const editWhatsapp = document.getElementById('editWhatsapp');
+        const editFacebook = document.getElementById('editFacebook');
+        if (editWhatsapp) editWhatsapp.value = socialLinks.whatsapp_group || '';
+        if (editFacebook) editFacebook.value = socialLinks.facebook_page || '';
+    }
+}
+
+async function saveSocialLinks() {
+    const whatsapp = document.getElementById('editWhatsapp').value;
+    const facebook = document.getElementById('editFacebook').value;
+    const response = await apiCall('/api/settings/social', {
+        method: 'POST',
+        body: JSON.stringify({ whatsapp_group: whatsapp, facebook_page: facebook })
+    });
+    if (response && response.ok) {
+        showToast('Social links updated!');
+        loadSocialLinks();
+    } else {
+        showToast('Failed to update', true);
+    }
+}
+
 function renderBikes() {
     const grid = document.getElementById('bikesGrid');
     if (!grid) return;
     if (bikes.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-12">No bikes available.</div>';
+        grid.innerHTML = '<div style="text-align:center; padding:40px;">No bikes available.</div>';
         return;
     }
     grid.innerHTML = bikes.map(bike => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-md bike-card border cursor-pointer" onclick="showBikeDetails('${bike._id}')">
-            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-img w-full" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
-            <div class="p-4">
-                <h3 class="text-xl font-black">${escapeHtml(bike.name)}</h3>
-                <div class="text-blue-600 font-bold text-xl">${bike.price}</div>
-                <div class="grid grid-cols-2 gap-1 text-xs text-gray-500 mt-2">
+        <div class="bike-card" onclick="showBikeDetails('${bike._id}')">
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="bike-image" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
+            <div class="bike-info">
+                <div class="bike-name">${escapeHtml(bike.name)}</div>
+                <div class="bike-price">${bike.price}</div>
+                <div class="bike-details">
                     <span><i class="far fa-calendar"></i> ${bike.year}</span>
                     <span><i class="fas fa-road"></i> ${bike.km}</span>
                     <span><i class="fas fa-map-marker-alt"></i> ${bike.location}</span>
-                    <span><i class="fas fa-tag"></i> ${bike.brand}</span>
                 </div>
-                <div class="mt-3 flex gap-2">
-                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="text-xs text-green-600" onclick="event.stopPropagation()"><i class="fab fa-whatsapp"></i> Inquire</a>
-                    ${token ? `<button onclick="event.stopPropagation(); editBike('${bike._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); deleteBike('${bike._id}')" class="text-xs text-red-600">🗑️ Delete</button><button onclick="event.stopPropagation(); markAsSold('${bike._id}')" class="text-xs text-purple-600">🏷️ Mark Sold</button>` : ''}
+                <div class="card-actions">
+                    <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="btn-sm btn-inquire" onclick="event.stopPropagation()"><i class="fab fa-whatsapp"></i> Inquire</a>
+                    ${token ? `<button onclick="event.stopPropagation(); editBike('${bike._id}')" class="btn-sm btn-edit"><i class="fas fa-edit"></i> Edit</button><button onclick="event.stopPropagation(); deleteBike('${bike._id}')" class="btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button><button onclick="event.stopPropagation(); markAsSold('${bike._id}')" class="btn-sm btn-sold"><i class="fas fa-tag"></i> Sold</button>` : ''}
                 </div>
             </div>
         </div>
     `).join('');
-    
     const addBtn = document.getElementById('addNewBikeBtn');
-    if (addBtn) {
-        if (token) addBtn.classList.remove('hidden');
-        else addBtn.classList.add('hidden');
-    }
+    if (addBtn) addBtn.style.display = token ? 'block' : 'none';
 }
 
 function renderSold() {
     const grid = document.getElementById('soldGrid');
     if (!grid) return;
     if (soldList.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-12">No sold records.</div>';
+        grid.innerHTML = '<div style="text-align:center; padding:40px;">No sold records.</div>';
         return;
     }
     grid.innerHTML = soldList.map(s => `
-        <div class="bg-white rounded-2xl shadow-md sold-card border-l-8 border-green-500 cursor-pointer p-4" onclick="showSoldDetails('${s._id}')">
-            <h3 class="text-xl font-bold">${escapeHtml(s.name)}</h3>
-            <p class="font-bold text-green-700 text-lg">${s.sold_price}</p>
-            <p class="text-sm text-gray-600"><i class="far fa-calendar-alt"></i> ${s.month_year} · Buyer: ${escapeHtml(s.buyer)}</p>
-            ${s.image ? `<div class="mt-2"><img src="${s.image}" class="w-full h-32 object-cover rounded-lg" onclick="event.stopPropagation(); showImagePreview('${s.image}')" onerror="this.style.display='none'"></div>` : ''}
-            ${token ? `<div class="flex gap-2 mt-3"><button onclick="event.stopPropagation(); editSold('${s._id}')" class="text-xs text-yellow-600">✏️ Edit</button><button onclick="event.stopPropagation(); deleteSold('${s._id}')" class="text-xs text-red-600">🗑️ Delete</button></div>` : ''}
+        <div class="sold-card" onclick="showSoldDetails('${s._id}')">
+            <div class="sold-info">
+                <div class="bike-name">${escapeHtml(s.name)}</div>
+                <div class="bike-price" style="color:#10b981;">${s.sold_price}</div>
+                <div class="bike-details">
+                    <span><i class="far fa-calendar-alt"></i> ${s.month_year}</span>
+                    <span><i class="fas fa-user"></i> ${escapeHtml(s.buyer)}</span>
+                </div>
+                ${s.image ? `<img src="${s.image}" style="width:100%; height:120px; object-fit:cover; border-radius:12px; margin-top:12px;" onclick="event.stopPropagation(); showImagePreview('${s.image}')">` : ''}
+                <div class="card-actions">
+                    ${token ? `<button onclick="event.stopPropagation(); editSold('${s._id}')" class="btn-sm btn-edit"><i class="fas fa-edit"></i> Edit</button><button onclick="event.stopPropagation(); deleteSold('${s._id}')" class="btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                </div>
+            </div>
         </div>
     `).join('');
-    
     const addBtn = document.getElementById('addSoldEntryBtn');
-    if (addBtn) {
-        if (token) addBtn.classList.remove('hidden');
-        else addBtn.classList.add('hidden');
-    }
+    if (addBtn) addBtn.style.display = token ? 'block' : 'none';
 }
 
-// ============= BIKE DETAILS =============
+// ============= BIKE DETAILS WITH COMMENTS =============
 async function showBikeDetails(bikeId) {
     const bike = bikes.find(b => b._id === bikeId);
     if (!bike) return;
     
-    // Load comments
-    const commentsResponse = await apiCall(`/api/comments/${bikeId}`);
-    const comments = commentsResponse && commentsResponse.ok ? await commentsResponse.json() : [];
+    const commentsRes = await apiCall(`/api/comments/${bikeId}`);
+    const comments = commentsRes && commentsRes.ok ? await commentsRes.json() : [];
     
-    const commentsHtml = comments.map(comment => `
-        <div class="bg-gray-50 rounded-lg p-3 mb-3">
-            <div class="flex justify-between items-start">
-                <div>
-                    <span class="font-semibold text-blue-600">${escapeHtml(comment.user)}</span>
-                    <span class="text-xs text-gray-400 ml-2">${comment.date}</span>
-                </div>
-                ${token ? `<button onclick="deleteComment('${comment._id}', '${bikeId}')" class="text-xs text-red-500 hover:text-red-700">Delete</button>` : ''}
+    const commentsHtml = comments.map(c => `
+        <div class="comment">
+            <div class="comment-header">
+                <span class="comment-user"><i class="fas fa-user-circle"></i> ${escapeHtml(c.user)}</span>
+                <span class="comment-date">${c.date}</span>
             </div>
-            <p class="text-gray-700 mt-1">${escapeHtml(comment.text)}</p>
+            <p class="comment-text">${escapeHtml(c.text)}</p>
+            ${token ? `<button onclick="deleteComment('${c._id}', '${bikeId}')" style="margin-top:8px; background:#fee2e2; border:none; padding:6px 12px; border-radius:20px; font-size:11px; color:#dc2626;">Delete</button>` : ''}
         </div>
     `).join('');
     
     const modalHtml = `
-        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <h2 class="text-2xl font-black text-blue-600">${escapeHtml(bike.name)}</h2>
-                <button onclick="document.getElementById('bikeDetailsModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button>
+        <div style="background:white; border-radius:24px; max-width:500px; width:100%; max-height:85vh; overflow-y-auto; padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="font-size:24px; font-weight:800; color:#2563eb;">${escapeHtml(bike.name)}</h2>
+                <button onclick="closeModal('bikeDetailsModal')" style="background:none; border:none; font-size:28px;">&times;</button>
             </div>
-            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" class="w-full h-64 object-cover rounded-xl mb-4 cursor-pointer" onclick="showImagePreview('${bike.image}')" onerror="this.src='https://placehold.co/600x400/1E3A8A/white?text=Bike'">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Price</p><p class="text-xl font-bold">${bike.price}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">🏷️ Brand</p><p class="text-lg font-semibold">${escapeHtml(bike.brand)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Year</p><p class="text-lg font-semibold">${bike.year}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📊 Kilometers</p><p class="text-lg font-semibold">${bike.km}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📍 Location</p><p class="text-lg font-semibold">${escapeHtml(bike.location)}</p></div>
+            <img src="${bike.image || 'https://placehold.co/600x400/1E3A8A/white?text=Bike'}" style="width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:16px;" onclick="showImagePreview('${bike.image}')">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">💰 Price</p><p style="font-weight:700; font-size:18px;">${bike.price}</p></div>
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">🏷️ Brand</p><p style="font-weight:600;">${escapeHtml(bike.brand)}</p></div>
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">📅 Year</p><p style="font-weight:600;">${bike.year}</p></div>
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">📊 KM</p><p style="font-weight:600;">${bike.km}</p></div>
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">📍 Location</p><p style="font-weight:600;">${escapeHtml(bike.location)}</p></div>
             </div>
-            <div class="mt-6 border-t pt-4">
-                <h3 class="text-lg font-bold mb-3">💬 Comments</h3>
-                <div class="mb-4">
-                    <div class="flex gap-2">
-                        <input type="text" id="comment-input" placeholder="Write a comment..." class="flex-1 border rounded-lg px-4 py-2">
-                        <button onclick="submitComment('${bikeId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Post</button>
-                    </div>
+            <div style="border-top:1px solid #e2e8f0; padding-top:16px;">
+                <h3 style="font-weight:700; margin-bottom:12px;">💬 Comments</h3>
+                <div style="display:flex; gap:8px; margin-bottom:16px;">
+                    <input type="text" id="commentInput" placeholder="Write a comment..." style="flex:1; padding:12px; border:1px solid #e2e8f0; border-radius:40px;">
+                    <button onclick="submitComment('${bikeId}')" style="background:#2563eb; color:white; border:none; padding:0 20px; border-radius:40px;">Post</button>
                 </div>
-                <div id="comments-list" class="max-h-60 overflow-y-auto">
-                    ${commentsHtml || '<p class="text-gray-500 text-center py-4">No comments yet.</p>'}
-                </div>
+                <div id="commentsList" style="max-height:200px; overflow-y:auto;">${commentsHtml || '<p style="text-align:center; color:#94a3b8;">No comments yet.</p>'}</div>
             </div>
-            <div class="mt-6 flex gap-3">
-                <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="flex-1 bg-green-600 text-white text-center py-2 rounded-lg">Inquire on WhatsApp</a>
-                ${token ? `<button onclick="editBike('${bike._id}'); document.getElementById('bikeDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit Bike</button>` : ''}
-                <button onclick="document.getElementById('bikeDetailsModal').classList.add('hidden')" class="flex-1 bg-gray-300 py-2 rounded-lg">Close</button>
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <a href="https://wa.me/94753503111?text=I'm%20interested%20in%20${encodeURIComponent(bike.name)}" target="_blank" class="btn-inquire" style="flex:1; background:#25D366; color:white; text-align:center; padding:14px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> Inquire</a>
+                ${token ? `<button onclick="editBike('${bike._id}'); closeModal('bikeDetailsModal')" style="flex:1; background:#eab308; color:white; border:none; border-radius:40px; font-weight:600;">Edit</button>` : ''}
+                <button onclick="closeModal('bikeDetailsModal')" style="flex:1; background:#e2e8f0; border:none; border-radius:40px; font-weight:600;">Close</button>
             </div>
         </div>
     `;
@@ -189,81 +211,78 @@ async function showBikeDetails(bikeId) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'bikeDetailsModal';
-        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
         document.body.appendChild(modal);
     }
     modal.innerHTML = modalHtml;
-    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
 }
 
 async function submitComment(bikeId) {
-    const input = document.getElementById('comment-input');
+    const input = document.getElementById('commentInput');
     const text = input.value;
     if (!text.trim()) return;
     const userName = token && currentUser ? currentUser.username : 'Customer';
     await apiCall('/api/comments', { method: 'POST', body: JSON.stringify({ bikeId, text, user: userName }) });
     input.value = '';
-    await showBikeDetails(bikeId);
+    showBikeDetails(bikeId);
 }
 
 async function deleteComment(commentId, bikeId) {
     if (!confirm('Delete this comment?')) return;
     await apiCall(`/api/comments/${commentId}`, { method: 'DELETE' });
-    await showBikeDetails(bikeId);
+    showBikeDetails(bikeId);
 }
 
-// ============= SOLD DETAILS =============
+// ============= SOLD DETAILS WITH FEEDBACK =============
 async function showSoldDetails(soldId) {
     const sold = soldList.find(s => s._id === soldId);
     if (!sold) return;
     
-    // Load feedbacks
-    const feedbacksResponse = await apiCall(`/api/feedbacks/${soldId}`);
-    const feedbacks = feedbacksResponse && feedbacksResponse.ok ? await feedbacksResponse.json() : [];
+    const feedbacksRes = await apiCall(`/api/feedbacks/${soldId}`);
+    const feedbacks = feedbacksRes && feedbacksRes.ok ? await feedbacksRes.json() : [];
     
-    const feedbacksHtml = feedbacks.map(fb => `
-        <div class="bg-gray-50 rounded-lg p-3 mb-3">
-            <div class="flex justify-between items-start">
-                <div>
-                    <div class="flex text-yellow-500">${'★'.repeat(fb.rating)}${'☆'.repeat(5 - fb.rating)}</div>
-                    <span class="font-semibold text-blue-600">${escapeHtml(fb.user)}</span>
-                    <span class="text-xs text-gray-400 ml-2">${fb.date}</span>
-                </div>
-                ${token ? `<button onclick="deleteFeedback('${fb._id}', '${soldId}')" class="text-xs text-red-500 hover:text-red-700">Delete</button>` : ''}
+    const feedbacksHtml = feedbacks.map(f => `
+        <div class="comment">
+            <div class="comment-header">
+                <div><span class="comment-user">${escapeHtml(f.user)}</span> <span class="comment-date">${f.date}</span></div>
+                ${token ? `<button onclick="deleteFeedback('${f._id}', '${soldId}')" style="background:#fee2e2; border:none; padding:4px 10px; border-radius:20px; font-size:11px;">Delete</button>` : ''}
             </div>
-            <p class="text-gray-700 mt-1">${escapeHtml(fb.comment)}</p>
+            <div style="color:#eab308; margin-bottom:6px;">${'★'.repeat(f.rating)}${'☆'.repeat(5 - f.rating)}</div>
+            <p class="comment-text">${escapeHtml(f.comment)}</p>
         </div>
     `).join('');
     
     const modalHtml = `
-        <div class="bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <h2 class="text-2xl font-black text-green-600">✅ ${escapeHtml(sold.name)}</h2>
-                <button onclick="document.getElementById('soldDetailsModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button>
+        <div style="background:white; border-radius:24px; max-width:500px; width:100%; max-height:85vh; overflow-y:auto; padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="font-size:24px; font-weight:800; color:#10b981;">✅ ${escapeHtml(sold.name)}</h2>
+                <button onclick="closeModal('soldDetailsModal')" style="background:none; border:none; font-size:28px;">&times;</button>
             </div>
-            ${sold.image ? `<img src="${sold.image}" class="w-full h-64 object-cover rounded-xl mb-4" onerror="this.style.display='none'">` : ''}
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">💰 Sold Price</p><p class="text-xl font-bold text-green-600">${sold.sold_price}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">👤 Buyer</p><p class="text-lg font-semibold">${escapeHtml(sold.buyer)}</p></div>
-                <div class="bg-gray-50 p-3 rounded-lg"><p class="text-gray-500 text-sm">📅 Sold Date</p><p class="text-lg font-semibold">${sold.month_year}</p></div>
+            ${sold.image ? `<img src="${sold.image}" style="width:100%; height:200px; object-fit:cover; border-radius:16px; margin-bottom:16px;" onclick="showImagePreview('${sold.image}')">` : ''}
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">💰 Sold Price</p><p style="font-weight:700;">${sold.sold_price}</p></div>
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">👤 Buyer</p><p style="font-weight:600;">${escapeHtml(sold.buyer)}</p></div>
+                <div style="background:#f8fafc; padding:12px; border-radius:12px;"><p style="font-size:12px; color:#64748b;">📅 Sold Date</p><p style="font-weight:600;">${sold.month_year}</p></div>
             </div>
-            <div class="mt-6 border-t pt-4">
-                <h3 class="text-lg font-bold mb-3">⭐ Customer Feedback</h3>
-                <div class="mb-4">
-                    <div class="flex gap-1 mb-2" id="rating-stars">
-                        ${[1,2,3,4,5].map(i => `<i class="fas fa-star text-gray-300 text-2xl cursor-pointer" data-rating="${i}" onclick="setRating(${i})"></i>`).join('')}
+            <div style="border-top:1px solid #e2e8f0; padding-top:16px;">
+                <h3 style="font-weight:700; margin-bottom:12px;">⭐ Customer Feedback</h3>
+                <div style="margin-bottom:16px;">
+                    <div style="display:flex; gap:5px; margin-bottom:10px;" id="ratingStars">
+                        ${[1,2,3,4,5].map(i => `<i class="fas fa-star" style="font-size:28px; color:#cbd5e1; cursor:pointer;" data-rating="${i}" onclick="setRating(${i})"></i>`).join('')}
                     </div>
-                    <input type="hidden" id="selected-rating" value="0">
-                    <textarea id="feedback-comment" placeholder="Share your experience..." class="w-full border rounded-lg px-4 py-2 mb-2" rows="2"></textarea>
-                    <button onclick="submitFeedback('${soldId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg">Submit Feedback</button>
+                    <input type="hidden" id="selectedRating" value="0">
+                    <textarea id="feedbackText" placeholder="Share your experience..." style="width:100%; padding:12px; border:1px solid #e2e8f0; border-radius:16px; margin-bottom:10px;" rows="2"></textarea>
+                    <button onclick="submitFeedback('${soldId}')" style="background:#10b981; color:white; border:none; padding:12px 20px; border-radius:40px; font-weight:600;">Submit Feedback</button>
                 </div>
-                <div id="feedbacks-list" class="max-h-60 overflow-y-auto">
-                    ${feedbacksHtml || '<p class="text-gray-500 text-center py-4">No feedback yet.</p>'}
-                </div>
+                <div id="feedbacksList">${feedbacksHtml || '<p style="text-align:center; color:#94a3b8;">No feedback yet.</p>'}</div>
             </div>
-            <div class="mt-6 flex gap-3">
-                ${token ? `<button onclick="editSold('${sold._id}'); document.getElementById('soldDetailsModal').classList.add('hidden')" class="flex-1 bg-yellow-500 text-white py-2 rounded-lg">Edit Entry</button>` : ''}
-                <button onclick="document.getElementById('soldDetailsModal').classList.add('hidden')" class="flex-1 bg-gray-300 py-2 rounded-lg">Close</button>
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                ${token ? `<button onclick="editSold('${sold._id}'); closeModal('soldDetailsModal')" style="flex:1; background:#eab308; color:white; border:none; border-radius:40px; padding:14px; font-weight:600;">Edit</button>` : ''}
+                <button onclick="closeModal('soldDetailsModal')" style="flex:1; background:#e2e8f0; border:none; border-radius:40px; padding:14px; font-weight:600;">Close</button>
             </div>
         </div>
     `;
@@ -272,55 +291,57 @@ async function showSoldDetails(soldId) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'soldDetailsModal';
-        modal.className = 'fixed inset-0 z-[400] hidden items-center justify-center modal-overlay p-4';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
         document.body.appendChild(modal);
     }
     modal.innerHTML = modalHtml;
-    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
 }
 
 let currentRating = 0;
 function setRating(rating) {
     currentRating = rating;
-    document.getElementById('selected-rating').value = rating;
+    document.getElementById('selectedRating').value = rating;
     for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
+        const star = document.querySelector(`#ratingStars i[data-rating="${i}"]`);
         if (star) {
             if (i <= rating) {
-                star.classList.remove('text-gray-300');
-                star.classList.add('text-yellow-500');
+                star.style.color = '#eab308';
             } else {
-                star.classList.remove('text-yellow-500');
-                star.classList.add('text-gray-300');
+                star.style.color = '#cbd5e1';
             }
         }
     }
 }
 
 async function submitFeedback(soldId) {
-    const rating = parseInt(document.getElementById('selected-rating').value);
-    const comment = document.getElementById('feedback-comment').value;
+    const rating = parseInt(document.getElementById('selectedRating').value);
+    const comment = document.getElementById('feedbackText').value;
     if (rating === 0) { showToast('Please select a rating!', true); return; }
-    if (!comment.trim()) { showToast('Please write your feedback!', true); return; }
+    if (!comment.trim()) { showToast('Please write feedback!', true); return; }
     const userName = token && currentUser ? currentUser.username : 'Customer';
     await apiCall('/api/feedbacks', { method: 'POST', body: JSON.stringify({ soldId, rating, comment, user: userName }) });
-    document.getElementById('selected-rating').value = 0;
-    document.getElementById('feedback-comment').value = '';
+    document.getElementById('selectedRating').value = 0;
+    document.getElementById('feedbackText').value = '';
     currentRating = 0;
     for (let i = 1; i <= 5; i++) {
-        const star = document.querySelector(`#rating-stars i[data-rating="${i}"]`);
-        if (star) star.classList.remove('text-yellow-500');
+        const star = document.querySelector(`#ratingStars i[data-rating="${i}"]`);
+        if (star) star.style.color = '#cbd5e1';
     }
-    await showSoldDetails(soldId);
+    showSoldDetails(soldId);
+    showToast('Thank you for your feedback!');
 }
 
 async function deleteFeedback(feedbackId, soldId) {
     if (!confirm('Delete this feedback?')) return;
     await apiCall(`/api/feedbacks/${feedbackId}`, { method: 'DELETE' });
-    await showSoldDetails(soldId);
+    showSoldDetails(soldId);
 }
 
-// ============= EDIT FUNCTIONS =============
+// ============= CRUD OPERATIONS =============
 function editBike(id) {
     const bike = bikes.find(b => b._id === id);
     if (!bike) return;
@@ -333,9 +354,9 @@ function editBike(id) {
     document.getElementById('bikeBrand').value = bike.brand;
     document.getElementById('bikeImageUrl').value = bike.image || '';
     const preview = document.getElementById('bikeImagePreview');
-    if (bike.image) { preview.src = bike.image; preview.classList.remove('hidden'); }
-    else { preview.classList.add('hidden'); }
-    document.getElementById('editBikeModal').classList.remove('hidden');
+    if (bike.image) { preview.src = bike.image; preview.style.display = 'block'; }
+    else { preview.style.display = 'none'; }
+    document.getElementById('editBikeModal').style.display = 'flex';
 }
 
 async function deleteBike(id) {
@@ -343,7 +364,7 @@ async function deleteBike(id) {
     await apiCall(`/api/bikes/${id}`, { method: 'DELETE' });
     showToast('Bike deleted');
     loadBikes();
-    closeAllModals();
+    closeModal('editBikeModal');
 }
 
 function editSold(id) {
@@ -356,9 +377,9 @@ function editSold(id) {
     document.getElementById('soldBuyer').value = sold.buyer;
     document.getElementById('soldImageUrl').value = sold.image || '';
     const preview = document.getElementById('soldImagePreview');
-    if (sold.image) { preview.src = sold.image; preview.classList.remove('hidden'); }
-    else { preview.classList.add('hidden'); }
-    document.getElementById('editSoldModal').classList.remove('hidden');
+    if (sold.image) { preview.src = sold.image; preview.style.display = 'block'; }
+    else { preview.style.display = 'none'; }
+    document.getElementById('editSoldModal').style.display = 'flex';
 }
 
 async function deleteSold(id) {
@@ -366,7 +387,7 @@ async function deleteSold(id) {
     await apiCall(`/api/sold/${id}`, { method: 'DELETE' });
     showToast('Sold entry deleted');
     loadSold();
-    closeAllModals();
+    closeModal('editSoldModal');
 }
 
 async function markAsSold(bikeId) {
@@ -385,10 +406,8 @@ async function markAsSold(bikeId) {
     showToast('Bike marked as sold!');
     loadBikes();
     loadSold();
-    closeAllModals();
 }
 
-// ============= ADD MODAL FUNCTIONS =============
 function openAddBikeModal() {
     document.getElementById('editBikeId').value = '';
     document.getElementById('bikeName').value = '';
@@ -399,8 +418,8 @@ function openAddBikeModal() {
     document.getElementById('bikeBrand').value = '';
     document.getElementById('bikeImageUrl').value = '';
     document.getElementById('bikeImageUpload').value = '';
-    document.getElementById('bikeImagePreview').classList.add('hidden');
-    document.getElementById('editBikeModal').classList.remove('hidden');
+    document.getElementById('bikeImagePreview').style.display = 'none';
+    document.getElementById('editBikeModal').style.display = 'flex';
 }
 
 function openAddSoldModal() {
@@ -411,8 +430,8 @@ function openAddSoldModal() {
     document.getElementById('soldBuyer').value = '';
     document.getElementById('soldImageUrl').value = '';
     document.getElementById('soldImageUpload').value = '';
-    document.getElementById('soldImagePreview').classList.add('hidden');
-    document.getElementById('editSoldModal').classList.remove('hidden');
+    document.getElementById('soldImagePreview').style.display = 'none';
+    document.getElementById('editSoldModal').style.display = 'flex';
 }
 
 // ============= SAVE HANDLERS =============
@@ -437,7 +456,7 @@ document.getElementById('saveBikeBtn')?.addEventListener('click', async () => {
     const url = id ? `/api/bikes/${id}` : '/api/bikes';
     const method = id ? 'PUT' : 'POST';
     const response = await apiCall(url, { method, body: formData });
-    if (response && response.ok) { showToast(id ? 'Bike updated!' : 'Bike added!'); closeAllModals(); loadBikes(); }
+    if (response && response.ok) { showToast(id ? 'Bike updated!' : 'Bike added!'); closeModal('editBikeModal'); loadBikes(); }
 });
 
 document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
@@ -459,7 +478,7 @@ document.getElementById('saveSoldBtn')?.addEventListener('click', async () => {
     const url = id ? `/api/sold/${id}` : '/api/sold';
     const method = id ? 'PUT' : 'POST';
     const response = await apiCall(url, { method, body: formData });
-    if (response && response.ok) { showToast(id ? 'Sold entry updated!' : 'Sold entry added!'); closeAllModals(); loadSold(); }
+    if (response && response.ok) { showToast(id ? 'Sold updated!' : 'Sold added!'); closeModal('editSoldModal'); loadSold(); }
 });
 
 // ============= IMAGE PREVIEW =============
@@ -468,13 +487,29 @@ function showImagePreview(imageUrl) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'imagePreviewModal';
-        modal.className = 'fixed inset-0 z-[500] hidden items-center justify-center modal-overlay p-4';
-        modal.innerHTML = `<div class="bg-white rounded-2xl w-full max-w-3xl mx-auto p-4"><div class="flex justify-end"><button onclick="document.getElementById('imagePreviewModal').classList.add('hidden')" class="text-gray-500 text-2xl">&times;</button></div><img id="previewImage" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg"></div>`;
+        modal.className = 'modal-overlay';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.innerHTML = `<div style="background:white; border-radius:24px; max-width:90%; max-height:90%; overflow:auto; padding:20px;"><div style="text-align:right;"><button onclick="closeModal('imagePreviewModal')" style="background:none; border:none; font-size:28px;">&times;</button></div><img id="previewImage" src="" style="width:100%; height:auto; border-radius:16px;"></div>`;
         document.body.appendChild(modal);
     }
     document.getElementById('previewImage').src = imageUrl;
-    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
 }
+
+// ============= FILTER HANDLERS =============
+document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const filter = this.dataset.filter;
+        if (filter === 'all') bikes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        else if (filter === 'price-desc') bikes.sort((a, b) => b.price_num - a.price_num);
+        else if (filter === 'price-asc') bikes.sort((a, b) => a.price_num - b.price_num);
+        renderBikes();
+    });
+});
 
 // ============= AUTHENTICATION =============
 async function checkAuth() {
@@ -486,8 +521,10 @@ async function checkAuth() {
         document.getElementById('userStatusText').innerHTML = 'Admin';
         document.getElementById('dropdownUserName').innerHTML = 'Admin (Edit Mode)';
         document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
-        document.getElementById('logoutBtn').classList.remove('hidden');
-        document.getElementById('showLoginOption').classList.add('hidden');
+        document.getElementById('logoutBtn').style.display = 'block';
+        document.getElementById('showLoginOption').style.display = 'none';
+        const adminEdit = document.getElementById('adminSocialEdit');
+        if (adminEdit) adminEdit.style.display = 'block';
         return true;
     }
     return false;
@@ -499,18 +536,15 @@ async function login(username, password) {
         const data = await response.json();
         token = data.token;
         localStorage.setItem('token', token);
-        document.getElementById('userStatusText').innerHTML = 'Admin';
-        document.getElementById('dropdownUserName').innerHTML = 'Admin (Edit Mode)';
-        document.getElementById('dropdownUserRole').innerHTML = '● Edit Mode';
-        document.getElementById('logoutBtn').classList.remove('hidden');
-        document.getElementById('showLoginOption').classList.add('hidden');
-        closeAllModals();
+        await checkAuth();
+        closeModal('loginModal');
         showToast('Login successful!');
-        if (window.location.pathname.includes('bikes.html')) loadBikes();
-        if (window.location.pathname.includes('sold.html')) loadSold();
+        loadBikes();
+        loadSold();
+        loadSocialLinks();
         return true;
     } else {
-        document.getElementById('loginError').classList.remove('hidden');
+        document.getElementById('loginError').style.display = 'block';
         return false;
     }
 }
@@ -521,80 +555,43 @@ function logout() {
     document.getElementById('userStatusText').innerHTML = 'Guest';
     document.getElementById('dropdownUserName').innerHTML = 'Guest User';
     document.getElementById('dropdownUserRole').innerHTML = 'View Only Mode';
-    document.getElementById('logoutBtn').classList.add('hidden');
-    document.getElementById('showLoginOption').classList.remove('hidden');
+    document.getElementById('logoutBtn').style.display = 'none';
+    document.getElementById('showLoginOption').style.display = 'block';
+    const adminEdit = document.getElementById('adminSocialEdit');
+    if (adminEdit) adminEdit.style.display = 'none';
     showToast('Logged out');
-    if (window.location.pathname.includes('bikes.html')) loadBikes();
-    if (window.location.pathname.includes('sold.html')) loadSold();
+    loadBikes();
+    loadSold();
 }
 
 // ============= EVENT LISTENERS =============
 document.getElementById('doLoginBtn')?.addEventListener('click', () => {
     login(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value);
 });
-
 document.getElementById('showLoginOption')?.addEventListener('click', (e) => {
     e.preventDefault();
-    document.getElementById('loginModal').classList.remove('hidden');
+    document.getElementById('loginModal').style.display = 'flex';
 });
-
-document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    logout();
-});
-
-document.getElementById('accountBtn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('accountDropdown').classList.toggle('hidden');
-});
-
-document.addEventListener('click', (e) => {
-    if (!document.getElementById('accountDropdown')?.contains(e.target) && e.target !== document.getElementById('accountBtn')) {
-        document.getElementById('accountDropdown')?.classList.add('hidden');
-    }
-});
-
-document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
-    document.getElementById('mobileTabs').classList.toggle('hidden');
-});
-
-document.getElementById('closeModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closeSoldModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closeLogoModalBtn')?.addEventListener('click', closeAllModals);
-document.getElementById('closeLoginModalBtn')?.addEventListener('click', closeAllModals);
+document.getElementById('logoutBtn')?.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+document.getElementById('addNewBikeBtn')?.addEventListener('click', openAddBikeModal);
+document.getElementById('addSoldEntryBtn')?.addEventListener('click', openAddSoldModal);
+document.getElementById('saveSocialLinksBtn')?.addEventListener('click', saveSocialLinks);
 
 // Image upload preview
 document.getElementById('bikeImageUpload')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();
-        reader.onload = (ev) => { document.getElementById('bikeImagePreview').src = ev.target.result; document.getElementById('bikeImagePreview').classList.remove('hidden'); document.getElementById('bikeImageUrl').value = ''; };
+        reader.onload = (ev) => { document.getElementById('bikeImagePreview').src = ev.target.result; document.getElementById('bikeImagePreview').style.display = 'block'; document.getElementById('bikeImageUrl').value = ''; };
         reader.readAsDataURL(file);
     }
 });
-
 document.getElementById('soldImageUpload')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();
-        reader.onload = (ev) => { document.getElementById('soldImagePreview').src = ev.target.result; document.getElementById('soldImagePreview').classList.remove('hidden'); document.getElementById('soldImageUrl').value = ''; };
+        reader.onload = (ev) => { document.getElementById('soldImagePreview').src = ev.target.result; document.getElementById('soldImagePreview').style.display = 'block'; document.getElementById('soldImageUrl').value = ''; };
         reader.readAsDataURL(file);
-    }
-});
-
-// Filter handlers
-document.addEventListener('click', (e) => {
-    if (e.target.dataset?.filter) {
-        const filter = e.target.dataset.filter;
-        document.querySelectorAll('[data-filter]').forEach(btn => {
-            btn.classList.remove('active-filter', 'bg-blue-600', 'text-white');
-            btn.classList.add('bg-white', 'text-gray-700');
-        });
-        e.target.classList.add('active-filter', 'bg-blue-600', 'text-white');
-        if (filter === 'all') bikes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        else if (filter === 'price-desc') bikes.sort((a, b) => b.price_num - a.price_num);
-        else if (filter === 'price-asc') bikes.sort((a, b) => a.price_num - b.price_num);
-        renderBikes();
     }
 });
 
@@ -610,10 +607,9 @@ document.getElementById('saveLogoBtn')?.addEventListener('click', async () => {
         const data = await response.json();
         document.getElementById('siteLogo').src = data.logoUrl;
         showToast('Logo updated!');
-        closeAllModals();
+        closeModal('editLogoModal');
     }
 });
-
 document.getElementById('logoUploadInput')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -634,24 +630,26 @@ async function loadLogo() {
     }
 }
 
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+
 // Make functions global
 window.editBike = editBike;
 window.deleteBike = deleteBike;
 window.editSold = editSold;
 window.deleteSold = deleteSold;
 window.markAsSold = markAsSold;
-window.openAddBikeModal = openAddBikeModal;
-window.openAddSoldModal = openAddSoldModal;
 window.showBikeDetails = showBikeDetails;
 window.showSoldDetails = showSoldDetails;
 window.submitComment = submitComment;
-window.submitFeedback = submitFeedback;
+window.deleteComment = deleteComment;
 window.setRating = setRating;
+window.submitFeedback = submitFeedback;
+window.deleteFeedback = deleteFeedback;
 window.showImagePreview = showImagePreview;
-
-// Add button click handlers
-document.getElementById('addNewBikeBtn')?.addEventListener('click', openAddBikeModal);
-document.getElementById('addSoldEntryBtn')?.addEventListener('click', openAddSoldModal);
+window.closeModal = closeModal;
 
 // ============= INITIALIZE =============
 async function init() {
@@ -661,13 +659,14 @@ async function init() {
         await checkAuth();
     }
     await loadLogo();
-    
-    if (window.location.pathname.includes('bikes.html') || window.location.pathname === '/' || window.location.pathname === '') {
-        loadBikes();
-    }
-    if (window.location.pathname.includes('sold.html')) {
-        loadSold();
-    }
+    await loadSocialLinks();
+    if (window.location.pathname.includes('bikes.html')) loadBikes();
+    if (window.location.pathname.includes('sold.html')) loadSold();
 }
-
 init();
+
+// Make sure your server.js has this at the end
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});

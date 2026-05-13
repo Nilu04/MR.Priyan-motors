@@ -1,0 +1,13 @@
+name = "priyan-motors"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Serve static assets from current directory
+[site]
+bucket = "."
+
+[env.production]
+vars = { NODE_VERSION = "20" }
+
+[build]
+command = "npm install"
